@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: #f7f6f2;
+  --color-surface: #ffffff;
+  --color-ink: #1c1f1d;
+  --color-muted: #5d645f;
+  --color-line: #dcdcd5;
+  --color-accent: #0f6b55;
+  --color-accent-strong: #0b5643;
+  --color-accent-soft: #e3f1ec;
+  --color-star: #9a5b00;
+  --color-danger: #a32a1f;
+  --color-danger-soft: #fbeae7;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

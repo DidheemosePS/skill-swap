@@ -1,0 +1,58 @@
+import type { Match } from '../../types'
+
+export const mockMatches: Match[] = [
+  {
+    id: 'match-bea',
+    peerId: 'user-bea',
+    swapType: 'two_way',
+    score: 96,
+    teachesYou: ['skill-spanish'],
+    learnsFromYou: ['skill-python'],
+    creditCost: 0,
+  },
+  {
+    id: 'match-cole',
+    peerId: 'user-cole',
+    swapType: 'two_way',
+    score: 91,
+    teachesYou: ['skill-ui-design'],
+    learnsFromYou: ['skill-react'],
+    creditCost: 0,
+  },
+  {
+    id: 'match-dina',
+    peerId: 'user-dina',
+    swapType: 'two_way',
+    score: 84,
+    teachesYou: ['skill-speaking'],
+    learnsFromYou: ['skill-python'],
+    creditCost: 0,
+  },
+  {
+    id: 'match-faye',
+    peerId: 'user-faye',
+    swapType: 'one_way',
+    score: 88,
+    teachesYou: ['skill-ui-design'],
+    learnsFromYou: [],
+    creditCost: 1,
+  },
+  {
+    id: 'match-evan',
+    peerId: 'user-evan',
+    swapType: 'one_way',
+    score: 79,
+    teachesYou: ['skill-spanish'],
+    learnsFromYou: [],
+    creditCost: 1,
+  },
+  {
+    id: 'match-gus',
+    peerId: 'user-gus',
+    swapType: 'one_way',
+    score: 72,
+    teachesYou: ['skill-speaking'],
+    learnsFromYou: [],
+    creditCost: 1,
+  },
+]

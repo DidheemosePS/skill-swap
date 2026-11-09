@@ -1,0 +1,108 @@
+import type { BusyTime, PeerSlot, SlotHold, Weekday, WeeklyAvailability } from '../types'
+
+const HOUR_MS = 3_600_000
+const DAY_MS = 24 * HOUR_MS
+const HOLD_HOURS = 48
+// Indexed by Date.getUTCDay(), which counts from Sunday.
+const WEEKDAY_BY_INDEX: Weekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+function getZoneParts(timeZone: string, date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+  }).formatToParts(date)
+  const read = (type: string) => Number(parts.find((part) => part.type === type)?.value)
+  return { year: read('year'), month: read('month'), day: read('day'), hour: read('hour'), minute: read('minute'), second: read('second') }
+}
+
+function getZoneOffsetMs(timeZone: string, date: Date): number {
+  const { year, month, day, hour, minute, second } = getZoneParts(timeZone, date)
+  return Date.UTC(year, month - 1, day, hour, minute, second) - Math.floor(date.getTime() / 1000) * 1000
+}
+
+// The offset is checked twice because the first guess can land on the wrong side of a DST change.
+function zonedTimeToMs(wallClockMs: number, timeZone: string): number {
+  const firstGuess = wallClockMs - getZoneOffsetMs(timeZone, new Date(wallClockMs))
+  return wallClockMs - getZoneOffsetMs(timeZone, new Date(firstGuess))
+}
+
+// Turns a member's recurring weekly hours into real start times, as ISO strings, soonest first.
+export function getUpcomingSlots({ timezone, slots }: WeeklyAvailability, now: number, days = 14): string[] {
+  const { year, month, day } = getZoneParts(timezone, new Date(now))
+  const todayMs = Date.UTC(year, month - 1, day)
+  const earliest = now + HOUR_MS
+  const starts: number[] = []
+  for (let offset = 0; offset < days; offset += 1) {
+    const dateMs = todayMs + offset * DAY_MS
+    const weekday = WEEKDAY_BY_INDEX[new Date(dateMs).getUTCDay()]
+    for (const slot of slots) {
+      if (slot.day !== weekday) continue
+      const startMs = zonedTimeToMs(dateMs + slot.startHour * HOUR_MS, timezone)
+      if (startMs >= earliest) starts.push(startMs)
+    }
+  }
+  return starts.sort((a, b) => a - b).map((ms) => new Date(ms).toISOString())
+}
+
+export const formatSlotDay = (iso: string) =>
+  new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso))
+
+export const formatSlotTime = (iso: string) =>
+  new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+
+export const formatSlotDateTime = (iso: string) => `${formatSlotDay(iso)}, ${formatSlotTime(iso)}`
+
+// Slots are one hour long. Overlap rather than exact match, so a session starting at 9:30 also
+// rules out the 9:00 and 10:00 slots.
+function overlapsSlot(slotStart: string, range: BusyTime): boolean {
+  const start = Date.parse(slotStart)
+  return start < Date.parse(range.endsAt) && start + HOUR_MS > Date.parse(range.startsAt)
+}
+
+export const getSlotEnd = (startsAt: string) => new Date(Date.parse(startsAt) + HOUR_MS).toISOString()
+
+// A hold lasts 48 hours, or until 1 hour before the session if that comes first, so a silent
+// mentor can't block a time forever and a late answer can't confirm a session about to start.
+export function getHoldExpiry(startsAt: string, now: number): string {
+  return new Date(Math.min(now + HOLD_HOURS * HOUR_MS, Date.parse(startsAt) - HOUR_MS)).toISOString()
+}
+
+export const isHoldActive = ({ expiresAt }: SlotHold, now: number) =>
+  expiresAt === null || Date.parse(expiresAt) > now
+
+// The member's own clashes win, because that's the reason that matters most to them.
+export function classifySlots(starts: string[], mentorHolds: SlotHold[], myBusyTimes: BusyTime[], now: number): PeerSlot[] {
+  const active = mentorHolds.filter((hold) => isHoldActive(hold, now))
+  const matchingHold = (startsAt: string) =>
+    active.find((hold) => overlapsSlot(startsAt, { startsAt: hold.startsAt, endsAt: getSlotEnd(hold.startsAt) }))
+
+  return starts.map((startsAt) => {
+    if (myBusyTimes.some((busy) => overlapsSlot(startsAt, busy))) return { startsAt, status: 'your_session' }
+    return { startsAt, status: matchingHold(startsAt)?.status ?? 'open' }
+  })
+}
+
+const CUSTOM_SLOT_MAX_DAYS = 30
+
+export function getCustomSlotError(startsAt: string, now: number): string | null {
+  const start = Date.parse(startsAt)
+  if (Number.isNaN(start)) return 'Please enter a date and time.'
+  if (start < now + HOUR_MS) return 'Please pick a time at least 1 hour from now.'
+  if (start > now + CUSTOM_SLOT_MAX_DAYS * DAY_MS) return `Please pick a time within the next ${CUSTOM_SLOT_MAX_DAYS} days.`
+  return null
+}
+
+// A datetime-local input takes local time with no timezone, so the offset is removed first.
+const toDateTimeInputValue = (ms: number) =>
+  new Date(ms - new Date(ms).getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+
+export const getCustomSlotRange = (now: number) => ({
+  min: toDateTimeInputValue(now + HOUR_MS),
+  max: toDateTimeInputValue(now + CUSTOM_SLOT_MAX_DAYS * DAY_MS),
+})
