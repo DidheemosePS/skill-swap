@@ -87,3 +87,7 @@ frontend/src/
 - [`PRODUCT.md`](PRODUCT.md): who it's for and the product principles
 - [`DESIGN.md`](DESIGN.md): the visual system ("People & swap") and component rules
 - [`frontend/API_INTEGRATION_MAP.md`](frontend/API_INTEGRATION_MAP.md): every endpoint, payload and response the backend needs to provide
+
+## License
+
+[MIT](LICENSE) © 2026 DidheemosePS. Fonts, libraries and provider logos keep their own licenses; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
