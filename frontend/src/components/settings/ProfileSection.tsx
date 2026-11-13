@@ -3,6 +3,7 @@ import { FIELD_LIMITS } from '../../hooks/useSettingsForm'
 import type { ProfileSettings } from '../../types'
 import Avatar from '../common/Avatar'
 import TextField from '../common/TextField'
+import SettingsPanel from './SettingsPanel'
 
 interface ProfileSectionProps {
   draft: ProfileSettings
@@ -12,30 +13,36 @@ interface ProfileSectionProps {
 
 export default function ProfileSection({ draft, profileId, onChange }: ProfileSectionProps) {
   return (
-    <div className="max-w-2xl space-y-5">
-      <div className="flex items-center gap-4">
-        {/* The photo comes from the connected sign-in account, so there's no upload here. */}
-        <Avatar name={draft.name || '?'} url={null} size="lg" />
-        <Link to={`/user/${profileId}`} className="rounded text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
-          View your public profile
+    <SettingsPanel
+      id="profile-heading"
+      title="Public profile"
+      hint="What members see on your page."
+      aside={
+        <Link to={`/user/${profileId}`} className="inline-flex min-h-9 items-center rounded text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
+          View profile
         </Link>
+      }
+    >
+      <div className="max-w-2xl space-y-5">
+        {/* The photo comes from the connected sign-in account, so there's no upload here. */}
+        <Avatar name={draft.name || '?'} url={null} size="xl" />
+        <TextField label="Name" value={draft.name} maxLength={FIELD_LIMITS.name} onChange={(name) => onChange({ name })} />
+        <TextField
+          label="Headline"
+          value={draft.headline}
+          maxLength={FIELD_LIMITS.headline}
+          placeholder="Backend developer learning design"
+          onChange={(headline) => onChange({ headline })}
+        />
+        <TextField
+          label="Bio"
+          value={draft.bio}
+          rows={5}
+          maxLength={FIELD_LIMITS.bio}
+          placeholder="What you teach and how you run a session"
+          onChange={(bio) => onChange({ bio })}
+        />
       </div>
-      <TextField label="Name" value={draft.name} maxLength={FIELD_LIMITS.name} onChange={(name) => onChange({ name })} />
-      <TextField
-        label="Headline"
-        value={draft.headline}
-        maxLength={FIELD_LIMITS.headline}
-        placeholder="For example: Backend developer learning design"
-        onChange={(headline) => onChange({ headline })}
-      />
-      <TextField
-        label="Bio"
-        value={draft.bio}
-        rows={5}
-        maxLength={FIELD_LIMITS.bio}
-        placeholder="What you enjoy teaching, and how you like to run a session"
-        onChange={(bio) => onChange({ bio })}
-      />
-    </div>
+    </SettingsPanel>
   )
 }

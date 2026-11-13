@@ -4,6 +4,8 @@ import { completeOnboarding } from '../services/onboardingService'
 import { useAuth } from './useAuth'
 import type { Skill, Proficiency, TimeSlot, UserSkill } from '../types'
 import { getViewerTimezone, slotKey } from '../utils/availability'
+import { queueWelcomeTour } from './useWelcomeTour'
+import { useToast } from './useToast'
 
 export type OnboardingStep = 1 | 2 | 3
 
@@ -26,7 +28,7 @@ export function useOnboardingForm() {
   const [learnSkills, setLearnSkills] = useState<UserSkill[]>([])
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const toast = useToast()
 
   const canContinue =
     (step === 1 && teachSkills.length > 0) ||
@@ -43,7 +45,6 @@ export function useOnboardingForm() {
 
   async function submit() {
     setIsSubmitting(true)
-    setSubmitError(null)
     try {
       await completeOnboarding({
         teachSkills,
@@ -53,9 +54,11 @@ export function useOnboardingForm() {
       // Update the member first: AuthGate sends onboarded members away from /onboarding, and must
       // already see the change when the dashboard loads.
       updateUser({ isOnboarded: true })
+      // A new member gets the short credits tour on their first dashboard visit.
+      queueWelcomeTour()
       navigate('/dashboard', { replace: true })
     } catch {
-      setSubmitError(SUBMIT_ERROR)
+      toast.error(SUBMIT_ERROR, submit)
       setIsSubmitting(false)
     }
   }
@@ -66,7 +69,6 @@ export function useOnboardingForm() {
     learnSkills,
     slots,
     isSubmitting,
-    submitError,
     canContinue,
     setSlot,
     submit,

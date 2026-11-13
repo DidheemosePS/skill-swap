@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { saveSettings } from '../services/settingsService'
 import type { ConnectedAccount, ProfileSettings } from '../types'
 import { slotKey } from '../utils/availability'
+import { useToast } from './useToast'
 
 export type SettingsTab = 'profile' | 'skills' | 'availability' | 'account'
 
@@ -49,10 +50,9 @@ export function useSettingsForm(initial: ProfileSettings, onSaved: () => void) {
   const [saved, setSaved] = useState(initial)
   const [draft, setDraft] = useState(initial)
   const [isSaving, setIsSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const toast = useToast()
   // Errors only show once the member tries to save, rather than while they're still typing.
   const [showErrors, setShowErrors] = useState(false)
-  const [justSaved, setJustSaved] = useState(false)
 
   const changedTabs = (Object.keys(TAB_FIELDS) as SettingsTab[]).filter((tab) =>
     TAB_FIELDS[tab].some((field) => normalize(draft, field) !== normalize(saved, field)),
@@ -64,24 +64,21 @@ export function useSettingsForm(initial: ProfileSettings, onSaved: () => void) {
   // across the availability grid that changes several hours between renders.
   function update(patch: Partial<ProfileSettings> | ((current: ProfileSettings) => Partial<ProfileSettings>)) {
     setDraft((current) => ({ ...current, ...(typeof patch === 'function' ? patch(current) : patch) }))
-    setJustSaved(false)
   }
 
   async function save() {
     setShowErrors(true)
     if (errors.length > 0) return
     setIsSaving(true)
-    setSaveError(null)
     try {
       const next = await saveSettings(trimText(draft))
       setSaved(next)
       setDraft(next)
       setShowErrors(false)
-      setJustSaved(true)
       onSaved()
-      setTimeout(() => setJustSaved(false), 3000)
+      toast.success('Changes saved.')
     } catch {
-      setSaveError("We couldn't save your changes. They're still here, so please try again.")
+      toast.error("We couldn't save your changes. They're still here.", save)
     } finally {
       setIsSaving(false)
     }
@@ -90,7 +87,6 @@ export function useSettingsForm(initial: ProfileSettings, onSaved: () => void) {
   function discard() {
     setDraft(saved)
     setShowErrors(false)
-    setSaveError(null)
   }
 
   // Connecting or disconnecting saves at once, so both copies take the new list, while any
@@ -112,8 +108,6 @@ export function useSettingsForm(initial: ProfileSettings, onSaved: () => void) {
     isDirty,
     errors: showErrors ? errors : [],
     isSaving,
-    saveError,
-    justSaved,
     update,
     save,
     discard,

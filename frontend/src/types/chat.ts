@@ -46,19 +46,13 @@ export interface TextMessage extends BaseMessage {
   body: string
 }
 
-export interface CodeMessage extends BaseMessage {
-  kind: 'code'
-  language: string
-  code: string
-}
-
 export interface SwapRequestMessage extends BaseMessage {
   kind: 'swap_request'
   swapRequest: SwapRequest
 }
 
 // A union on `kind` lets the chat stream pick the right bubble with type-safe narrowing.
-export type Message = TextMessage | CodeMessage | SwapRequestMessage
+export type Message = TextMessage | SwapRequestMessage
 
 export interface Conversation {
   id: string
@@ -86,11 +80,26 @@ export interface ConversationSummary extends Conversation {
   peer: User
   // True when the two members have a live or completed session, which keeps chat open.
   hasSessionHistory: boolean
+  // The newest request in the thread, so the list can say who acts next and what it's worth.
+  latestRequest: {
+    status: SwapRequestStatus
+    swapType: SwapType
+    // The other member proposed the current times, so the answer is the current user's.
+    awaitingMe: boolean
+    iAmLearner: boolean
+    confirmedStartsAt: string | null
+    // The current user withdrew or declined it themselves, so the copy speaks to them as the one who closed it.
+    closedByMe: boolean
+  } | null
+  // A past session with this member whose outcome the current user still owes (mark it, or confirm it).
+  // skillId and iTaught let the note name the session ("You taught Dina Python") rather than just its time.
+  // An ended session still settling on someone else's side: a no-show report or dispute being checked,
+  // or a session the member taught waiting on the learner's confirmation. The row says so instead of going blank.
+  settlingSession: 'under_review' | 'awaiting_confirm' | null
+  owedSession: { id: string; startsAt: string; mode: 'resolve' | 'confirm'; skillId: string; iTaught: boolean } | null
 }
 
-export type MessageDraft =
-  | { kind: 'text'; body: string }
-  | { kind: 'code'; language: string; code: string }
+export type MessageDraft = { kind: 'text'; body: string }
 
 // What the WebSocket delivers. A message event also covers updates, such as a request being accepted.
 export type ChatEvent = { type: 'message'; message: Message } | { type: 'read'; conversationId: string }

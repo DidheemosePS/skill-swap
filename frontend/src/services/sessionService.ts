@@ -1,5 +1,5 @@
-import { CURRENT_USER_ID, mockConversations, mockReviews, mockSessions, mockSkills, mockUsers } from '../data/mockData'
-import type { Session, SessionDetail, SessionStatus, UpcomingSession } from '../types'
+import { CURRENT_USER_ID, mockConversations, mockMessages, mockReviews, mockSessions, mockSkills, mockUsers } from '../data/mockData'
+import type { RequestedSession, Session, SessionDetail, SessionStatus, UpcomingSession } from '../types'
 import { getSessionEndMs } from '../utils/sessions'
 import { mockRequest } from './mockClient'
 import { runSessionChecks } from './sessionActions'
@@ -29,6 +29,24 @@ export function fetchMySessions(): Promise<SessionDetail[]> {
   return mockRequest('my-sessions', structuredClone(sessions), [])
 }
 
+// Open requests either way, so the agenda can show times that are asked for but not booked yet.
+// The real API reads these from GET /swap-requests?status=pending.
+export function fetchRequestedSessions(): Promise<RequestedSession[]> {
+  const now = Date.now()
+  const requested = mockMessages.flatMap((message): RequestedSession[] => {
+    if (message.kind !== 'swap_request') return []
+    const request = message.swapRequest
+    if (request.status !== 'pending' || (request.expiresAt !== null && Date.parse(request.expiresAt) <= now)) return []
+    const isTeaching = request.teacherId === CURRENT_USER_ID
+    const partner = mockUsers.find((user) => user.id === (isTeaching ? request.learnerId : request.teacherId))
+    const skillName = getSkillName(request.skillId)
+    if (!partner || !skillName) return []
+    const proposedSlots = [...request.proposedSlots].sort()
+    return [{ requestId: request.id, partner, skillName, returnSkillName: getSkillName(request.returnSkillId) ?? null, swapType: request.swapType, isTeaching, proposedSlots, expiresAt: request.expiresAt, awaitingMe: request.lastProposedBy !== CURRENT_USER_ID }]
+  })
+  return mockRequest('requested-sessions', requested, [])
+}
+
 export function fetchUpcomingSessions(): Promise<UpcomingSession[]> {
   const upcoming = mockSessions
     .filter((session) => session.status === 'confirmed' && getSessionEndMs(session) > Date.now())
@@ -37,19 +55,22 @@ export function fetchUpcomingSessions(): Promise<UpcomingSession[]> {
   return mockRequest('sessions', upcoming, [])
 }
 
-// The soonest confirmed session with this peer, used to tell members they're already booked.
-export function getNextSessionAt(peerId: string): string | null {
-  const starts = mockSessions
-    .filter(
-      (session) =>
-        session.status === 'confirmed' &&
-        getSessionEndMs(session) > Date.now() &&
-        [session.teacherId, session.learnerId].includes(peerId),
-    )
-    .map((session) => session.startsAt)
-    .sort((a, b) => Date.parse(a) - Date.parse(b))
-  return starts[0] ?? null
+// The soonest confirmed session with this peer that hasn't ended, so a profile can offer Join for it.
+export function getNextSession(peerId: string): Session | null {
+  return (
+    mockSessions
+      .filter(
+        (session) =>
+          session.status === 'confirmed' &&
+          getSessionEndMs(session) > Date.now() &&
+          [session.teacherId, session.learnerId].includes(peerId),
+      )
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0] ?? null
+  )
 }
+
+// Its start time alone, used to tell members they're already booked.
+export const getNextSessionAt = (peerId: string): string | null => getNextSession(peerId)?.startsAt ?? null
 
 const LIVE_OR_COMPLETED: SessionStatus[] = ['confirmed', 'awaiting_settlement', 'pending_learner_review', 'disputed', 'completed']
 

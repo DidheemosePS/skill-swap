@@ -19,7 +19,7 @@ export default function ProficiencySelector({ legend, value, onChange }: Profici
         {LEVELS.map((level) => (
           <label
             key={level}
-            className={`flex min-h-10 cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors has-focus-visible:ring-2 has-focus-visible:ring-accent ${level === value ? 'bg-accent text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`}
+            className={`flex min-h-10 cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors has-focus-visible:ring-2 has-focus-visible:ring-accent ${level === value ? 'bg-next text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`}
           >
             <input
               type="radio"

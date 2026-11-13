@@ -1,68 +1,80 @@
 import { Link, NavLink } from 'react-router-dom'
 import AvatarMenu from './AvatarMenu'
-import type { NavItem } from './AvatarMenu'
+import BottomTabs from './BottomTabs'
+import { countLabel, NAV_LINKS } from './navLinks'
+import type { NavCountKey } from './navLinks'
+import NavCount from './NavCount'
+import Sidebar from './Sidebar'
+import Skeleton from './Skeleton'
+import WalletChip from './WalletChip'
+import BrandMark from './BrandMark'
 
 interface NavbarProps {
-  // Null while loading or after a failed load, so the link never shows a wrong balance.
+  // Null while loading or after a failed load, so the chip never shows a wrong balance.
   credits: number | null
-  unreadCount: number
+  heldCredits: number | null
+  counts: Record<NavCountKey, number>
   name: string
   avatarUrl: string | null
   profileId: string
+  // The reload screen draws the real frame before the member has loaded: account and balance show as placeholders.
+  placeholder?: boolean
 }
 
-const PRIMARY_LINKS: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/explore', label: 'Explore' },
-  { to: '/messages', label: 'Messages' },
-  { to: '/sessions', label: 'Sessions' },
-]
-
 const pillClasses =
-  'inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium outline-none transition-colors hover:bg-canvas focus-visible:ring-2 focus-visible:ring-accent'
+  'inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors hover:bg-canvas focus-visible:ring-2 focus-visible:ring-accent'
 
-export default function Navbar({ credits, unreadCount, name, avatarUrl, profileId }: NavbarProps) {
-  const creditLabel = credits === 1 ? '1 Credit' : `${credits} Credits`
+// From lg up the app sits in a left sidebar. Below it, one header row: the places (with their own counts),
+// the balance chip and the account menu; phones move the places to bottom tabs.
+export default function Navbar({ credits, heldCredits, counts, name, avatarUrl, profileId, placeholder = false }: NavbarProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-surface">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
-        <Link to="/dashboard" className="rounded font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent">
-          Skill Swap
-        </Link>
-        <nav aria-label="Main" className="ml-6 hidden gap-1 md:flex">
-          {PRIMARY_LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => `${pillClasses} ${isActive ? 'text-accent-strong' : 'text-muted'}`}
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <Link to="/wallet" className={`${pillClasses} whitespace-nowrap`}>
-            <span aria-hidden="true" className="mr-1">⚡</span>
-            {credits === null ? 'Wallet' : creditLabel}
+    <>
+      <Sidebar credits={credits} heldCredits={heldCredits} counts={counts} name={name} avatarUrl={avatarUrl} profileId={profileId} placeholder={placeholder} />
+      <header className="sticky top-0 z-20 border-b border-line bg-shell lg:hidden">
+        {/* Lets keyboard users jump past the nav; it only appears while focused. */}
+        <a
+          href="#main"
+          className="sr-only rounded-lg bg-accent text-sm font-semibold text-white outline-none focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-30 focus:px-4 focus:py-2.5 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        >
+          Skip to content
+        </a>
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
+          <Link to="/dashboard" className="mr-auto inline-flex min-h-11 items-center rounded font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent md:mr-0">
+            <BrandMark />
           </Link>
-          <Link
-            to="/messages"
-            aria-label={unreadCount > 0 ? `Notifications: ${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'}` : 'Notifications'}
-            className="relative flex size-10 items-center justify-center rounded-lg text-muted outline-none transition-colors hover:bg-canvas hover:text-ink focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9" />
-              <path d="M10 20a2.2 2.2 0 0 0 4 0" />
-            </svg>
-            {unreadCount > 0 && (
-              <span aria-hidden="true" className="absolute top-0.5 right-0.5 flex size-4.5 items-center justify-center rounded-full bg-danger text-[11px] font-semibold text-white">
-                {unreadCount}
-              </span>
+          <nav aria-label="Main" className="ml-6 hidden gap-1 md:flex">
+            {NAV_LINKS.map((link) => {
+              const count = link.countKey ? counts[link.countKey] : 0
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  aria-label={countLabel(link.label, link.countKey, count)}
+                  // A filled pill as well as colour, so the current page doesn't rely on colour alone.
+                  className={({ isActive }) => `${pillClasses} ${isActive ? 'bg-next-soft text-ink' : 'text-muted hover:text-ink'}`}
+                >
+                  {link.label}
+                  <NavCount value={count} />
+                </NavLink>
+              )
+            })}
+          </nav>
+          <div className="flex items-center gap-1 md:ml-auto sm:gap-2">
+            {placeholder ? (
+              <>
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="m-1 size-9 rounded-full" />
+              </>
+            ) : (
+              <>
+                <WalletChip credits={credits} heldCredits={heldCredits} />
+                <AvatarMenu name={name} avatarUrl={avatarUrl} profileId={profileId} />
+              </>
             )}
-          </Link>
-          <AvatarMenu name={name} avatarUrl={avatarUrl} primaryLinks={PRIMARY_LINKS} profileId={profileId} />
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+      <BottomTabs counts={counts} />
+    </>
   )
 }

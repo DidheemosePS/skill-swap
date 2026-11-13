@@ -1,5 +1,5 @@
 import type { SwapRequest } from '../../types'
-import { fromNow } from './time'
+import { fromNow, nextWeekly } from './time'
 import { CURRENT_USER_ID as ALEX } from './users'
 
 const openUntil = () => fromNow({ hours: 48 })
@@ -15,7 +15,8 @@ export const requestCole: SwapRequest = {
   returnSkillId: 'skill-react',
   note: 'I would love feedback on a dashboard I am designing.',
   counterNote: null,
-  proposedSlots: [fromNow({ days: 3 }), fromNow({ days: 3, hours: 1 })],
+  // Inside both Cole's and Alex's weekly hours, so withdrawing frees times the booking form offers again.
+  proposedSlots: [nextWeekly('sat', 18), nextWeekly('sat', 19)],
   lastProposedBy: ALEX,
   status: 'pending',
   confirmedStartsAt: null,
@@ -39,7 +40,7 @@ export const requestEvan: SwapRequest = {
   returnSkillId: null,
   note: 'Could you help me with Python for data cleaning?',
   counterNote: null,
-  proposedSlots: [fromNow({ days: 6 }), fromNow({ days: 6, hours: 1 })],
+  proposedSlots: [nextWeekly('tue', 9), nextWeekly('tue', 10)],
   lastProposedBy: 'user-evan',
   status: 'pending',
   confirmedStartsAt: null,
@@ -85,10 +86,10 @@ export const requestFaye: SwapRequest = {
   returnSkillId: null,
   note: null,
   counterNote: null,
-  proposedSlots: [fromNow({ days: 2 })],
+  proposedSlots: [nextWeekly('fri', 15)],
   lastProposedBy: ALEX,
   status: 'confirmed',
-  confirmedStartsAt: fromNow({ days: 2 }),
+  confirmedStartsAt: nextWeekly('fri', 15),
   cancelledBy: null,
   cancelReason: null,
   hasAlternatives: false,
@@ -108,7 +109,8 @@ export const requestGus: SwapRequest = {
   returnSkillId: null,
   note: null,
   counterNote: null,
-  proposedSlots: [fromNow({ days: -8 })],
+  // Asked for 10 days ago and declined a day later, matching the booking and refund in wallet.ts.
+  proposedSlots: [fromNow({ days: -1 })],
   lastProposedBy: ALEX,
   status: 'declined',
   confirmedStartsAt: null,
@@ -132,7 +134,7 @@ export const requestDina: SwapRequest = {
   returnSkillId: 'skill-python',
   note: null,
   counterNote: null,
-  proposedSlots: [fromNow({ hours: 30 })],
+  proposedSlots: [fromNow({ days: -9 })],
   lastProposedBy: ALEX,
   status: 'expired',
   confirmedStartsAt: null,
@@ -155,14 +157,38 @@ export const requestIvo: SwapRequest = {
   returnSkillId: null,
   note: null,
   counterNote: null,
-  proposedSlots: [fromNow({ days: 4 })],
+  proposedSlots: [nextWeekly('thu', 18)],
   lastProposedBy: 'user-ivo',
   status: 'confirmed',
-  confirmedStartsAt: fromNow({ days: 4 }),
+  confirmedStartsAt: nextWeekly('thu', 18),
   cancelledBy: null,
   cancelReason: null,
   hasAlternatives: false,
   expiresAt: null,
   meetingUrl: 'https://example.com/meet/ivo-upcoming',
   sessionId: 'session-ivo-upcoming',
+}
+
+// Dina's booking for the session that just ended, so her thread shows how the session came about.
+export const requestDinaSettle: SwapRequest = {
+  id: 'request-dina-settle',
+  swapType: 'one_way',
+  requesterId: 'user-dina',
+  recipientId: ALEX,
+  teacherId: ALEX,
+  learnerId: 'user-dina',
+  skillId: 'skill-python',
+  returnSkillId: null,
+  note: null,
+  counterNote: null,
+  proposedSlots: [fromNow({ minutes: -90 })],
+  lastProposedBy: 'user-dina',
+  status: 'confirmed',
+  confirmedStartsAt: fromNow({ minutes: -90 }),
+  cancelledBy: null,
+  cancelReason: null,
+  hasAlternatives: false,
+  expiresAt: null,
+  meetingUrl: 'https://example.com/meet/dina-settle',
+  sessionId: 'session-dina-settle',
 }

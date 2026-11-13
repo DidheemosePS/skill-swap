@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { completeSession, disputeCompletion, SessionClosedError } from '../../services/sessionActions'
 import type { SessionDetail } from '../../types'
 import { formatSlotDateTime } from '../../utils/timeSlots'
-import AlertBanner from '../common/AlertBanner'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 import NoteField from '../common/NoteField'
 import AttendanceSummary from './AttendanceSummary'
+import { useToast } from '../../hooks/useToast'
 
 interface ConfirmCompletionDrawerProps {
   session: SessionDetail
@@ -22,11 +22,10 @@ export default function ConfirmCompletionDrawer({ session, onClose, onConfirmed,
   const [pending, setPending] = useState<'confirm' | 'dispute' | null>(null)
   const [isDisputing, setIsDisputing] = useState(false)
   const [reason, setReason] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   async function run(action: 'confirm' | 'dispute') {
     setPending(action)
-    setError(null)
     try {
       if (action === 'confirm') {
         await completeSession(session.id)
@@ -36,18 +35,17 @@ export default function ConfirmCompletionDrawer({ session, onClose, onConfirmed,
         onDisputed()
       }
     } catch (cause) {
-      setError(cause instanceof SessionClosedError ? 'This session has already been settled.' : "We couldn't save that. Please try again.")
+      toast.error(cause instanceof SessionClosedError ? 'This session has already been settled.' : "We couldn't save that. Please try again.")
       setPending(null)
     }
   }
 
   return (
-    <Modal title={`${firstName} marked this completed`} onClose={onClose} isLocked={pending !== null} placement="drawer">
+    <Modal title={`${firstName} marked this completed`} onClose={onClose} isLocked={pending !== null}>
       <p className="mt-2 text-sm text-muted">
         {skillName} with {partner.name}, {formatSlotDateTime(session.startsAt)}.
       </p>
       <AttendanceSummary session={session} />
-      {error && <div className="mt-4"><AlertBanner message={error} /></div>}
 
       {isDisputing ? (
         <>
@@ -57,7 +55,7 @@ export default function ConfirmCompletionDrawer({ session, onClose, onConfirmed,
             onChange={setReason}
             placeholder="An admin reads this when reviewing the session"
           />
-          <p className="mt-2 text-sm">An admin reviews it with the meeting records. Your 1 credit stays in escrow until they decide.</p>
+          <p className="mt-2 text-sm">An admin reviews it with the meeting records. Your 1 credit stays held until they decide.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={() => run('dispute')} disabled={reason.trim() === ''} isLoading={pending === 'dispute'}>Send dispute</Button>
             <Button variant="secondary" onClick={() => setIsDisputing(false)} disabled={pending !== null}>Go back</Button>
@@ -67,7 +65,7 @@ export default function ConfirmCompletionDrawer({ session, onClose, onConfirmed,
         <>
           <p className="mt-4 text-sm">Confirming releases your 1 credit to {firstName} right away.</p>
           <div className="mt-5 flex flex-col gap-2">
-            <Button onClick={() => run('confirm')} isLoading={pending === 'confirm'} disabled={pending !== null}>Confirm session</Button>
+            <Button onClick={() => run('confirm')} isLoading={pending === 'confirm'} disabled={pending !== null}>Confirm the session</Button>
             <Button variant="secondary" onClick={() => setIsDisputing(true)} disabled={pending !== null}>Dispute</Button>
             <Button variant="secondary" onClick={onClose} disabled={pending !== null}>Decide later</Button>
           </div>

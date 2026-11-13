@@ -1,3 +1,4 @@
+import { requestNoun } from '../utils/chat'
 import { CURRENT_USER_ID, mockConversations, mockMessages, mockSessions, mockSlotHolds, mockTransactions, mockWallet } from '../data/mockData'
 import type { Message, SwapRequest, SwapRequestMessage } from '../types'
 import { getCustomSlotError, getHoldExpiry } from '../utils/timeSlots'
@@ -10,6 +11,8 @@ const MOCK_PEER_ANSWER_MS = 4000
 
 // The request was already answered or lapsed. Maps to a 409 from the real API.
 export class RequestClosedError extends Error {}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 export const isRequestMessage = (message: Message): message is SwapRequestMessage => message.kind === 'swap_request'
 
@@ -77,14 +80,14 @@ export function confirmRequest(message: SwapRequestMessage, startsAt: string): M
   }
   const session = mockSessions.find((item) => item.id === swapRequest.sessionId)
   if (session) Object.assign(session, { status: 'confirmed', startsAt, meetingUrl })
-  return publish(message, 'Swap confirmed.')
+  return publish(message, message.swapRequest.swapType === 'two_way' ? 'Swap confirmed.' : 'Session confirmed.')
 }
 
 export function expireLapsedRequests(now = Date.now()) {
   for (const message of mockMessages.filter(isRequestMessage)) {
     const { status, expiresAt } = message.swapRequest
     if (status === 'pending' && expiresAt && Date.parse(expiresAt) <= now) {
-      closeRequest(message, 'expired', 'Swap request expired.')
+      closeRequest(message, 'expired', `${capitalize(requestNoun(message.swapRequest.swapType))} expired.`)
     }
   }
 }
@@ -149,11 +152,13 @@ export async function counterSwapRequest(requestId: string, proposedSlots: strin
 
 export async function declineSwapRequest(requestId: string): Promise<Message> {
   await mockRequest('swap-action', null)
-  return closeRequest(getOpenRequest(requestId, isMyTurn), 'declined', 'Swap request declined.')
+  const message = getOpenRequest(requestId, isMyTurn)
+  return closeRequest(message, 'declined', `${capitalize(requestNoun(message.swapRequest.swapType))} declined.`)
 }
 
 export async function cancelSwapRequest(requestId: string): Promise<Message> {
   await mockRequest('swap-action', null)
   const message = getOpenRequest(requestId, (request) => !isMyTurn(request))
-  return closeRequest(message, 'cancelled', 'Swap request cancelled.')
+  // Worded as the tag reads ("Withdrawn"), since only the member who asked can withdraw.
+  return closeRequest(message, 'cancelled', `You withdrew the ${requestNoun(message.swapRequest.swapType)}.`)
 }

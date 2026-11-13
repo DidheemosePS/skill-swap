@@ -49,7 +49,7 @@ export const mockCurrentUser: User = {
   reviewCount: 2,
   // Matches the six completed sessions in sessions.ts.
   completedSessions: 6,
-  isReliable: true,
+  isReliable: false,
   lastActiveAt: fromNow({ minutes: -2 }),
 }
 
@@ -87,7 +87,7 @@ export const mockUsers: User[] = [
     rating: 4.7,
     reviewCount: 18,
     completedSessions: 24,
-    isReliable: true,
+    isReliable: false,
     lastActiveAt: fromNow({ hours: -1 }),
   },
   {
@@ -104,7 +104,7 @@ export const mockUsers: User[] = [
     rating: 4.6,
     reviewCount: 12,
     completedSessions: 15,
-    isReliable: true,
+    isReliable: false,
     lastActiveAt: fromNow({ hours: -3 }),
   },
   {
@@ -112,10 +112,10 @@ export const mockUsers: User[] = [
     name: 'Evan Fixture',
     avatarUrl: null,
     headline: 'Bilingual translator with a camera habit',
-    bio: 'I teach practical Spanish and French for travel and work.',
+    bio: 'I teach practical French for travel and work, and I am learning Python for my translation tools.',
     isOnboarded: true,
-    teachSkills: [level(skill.spanish, 'intermediate'), level(skill.french, 'expert')],
-    learnSkills: [level(skill.photography, 'intermediate')],
+    teachSkills: [level(skill.french, 'expert')],
+    learnSkills: [level(skill.python, 'intermediate'), level(skill.photography, 'intermediate')],
     availability: week(['tue', 'thu'], [9, 10, 17]),
     socialLinks: github('evan-fixture'),
     rating: 4.5,
@@ -189,7 +189,7 @@ export const mockUsers: User[] = [
     rating: 4.4,
     reviewCount: 8,
     completedSessions: 10,
-    isReliable: true,
+    isReliable: false,
     lastActiveAt: fromNow({ days: -4 }),
   },
 ]

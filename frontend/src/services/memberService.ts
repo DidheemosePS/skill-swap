@@ -1,5 +1,6 @@
 import { mockCurrentUser, mockMatches, mockUsers } from '../data/mockData'
-import type { DirectoryMember, ExploreFilters, SwapOffer, User, UserSkill } from '../types'
+import type { DirectoryMember, ExploreDeal, ExploreFilters, SwapOffer, User, UserSkill } from '../types'
+import { MIN_REVIEWS_FOR_RATING } from '../utils/ratings'
 import { skillNameKey } from '../utils/skills'
 import { hasPendingRequestWith } from './chatService'
 import { mockRequest } from './mockClient'
@@ -20,6 +21,12 @@ export function getSwapOffer(peer: User): SwapOffer {
   return { peer, swapType: 'one_way', teachesYou: [...teachesYou, ...otherSkills], learnsFromYou: [], creditCost: 1 }
 }
 
+// The board's sections, decided once per member: a two-way swap is free, and anyone else is learned
+// from with a credit, the same rule booking charges by.
+const getDeal = (swapType: SwapOffer['swapType']): ExploreDeal => (swapType === 'two_way' ? 'free' : 'credit')
+
+const TYPE_DEALS: Record<ExploreFilters['type'], ExploreDeal | null> = { all: null, '2way': 'free', '1way': 'credit' }
+
 const getScore = (member: User) => mockMatches.find((match) => match.peerId === member.id)?.score ?? 0
 
 const SORTERS: Record<ExploreFilters['sort'], (a: User, b: User) => number> = {
@@ -35,19 +42,26 @@ export function searchMembers(filters: ExploreFilters): Promise<DirectoryMember[
     .filter(
       (user) =>
         (!skillKey || user.teachSkills.some(({ skill }) => skillNameKey(skill.name).includes(skillKey))) &&
-        (filters.rating === 'any' || user.rating >= Number(filters.rating)) &&
-        (filters.day === 'any' || user.availability.slots.some((slot) => slot.day === filters.day)),
+        // A new member's average isn't shown, so it can't pass a rating filter either.
+        (filters.rating === 'any' || (user.reviewCount >= MIN_REVIEWS_FOR_RATING && user.rating >= Number(filters.rating))) &&
+        (filters.day === 'any' || user.availability.slots.some((slot) => slot.day === filters.day)) &&
+        (!filters.reliable || user.isReliable),
     )
     .sort(SORTERS[filters.sort])
-    .map((user) => ({
-      user,
-      swapType: getSwapOffer(user).swapType,
-      hasPendingRequest: hasPendingRequestWith(user.id),
-      nextSessionAt: getNextSessionAt(user.id),
-    }))
-    .filter(
-      ({ swapType }) =>
-        filters.type === 'all' || swapType === (filters.type === '2way' ? 'two_way' : 'one_way'),
-    )
+    .map((user) => {
+      const swapType = getSwapOffer(user).swapType
+      const teachesYou = sharedSkillIds(user.teachSkills, mockCurrentUser.learnSkills)
+      const learnsFromYou = sharedSkillIds(user.learnSkills, mockCurrentUser.teachSkills)
+      return {
+        user,
+        swapType,
+        deal: getDeal(swapType),
+        hasPendingRequest: hasPendingRequestWith(user.id),
+        nextSessionAt: getNextSessionAt(user.id),
+        teachesYou,
+        learnsFromYou,
+      }
+    })
+    .filter(({ deal }) => TYPE_DEALS[filters.type] === null || deal === TYPE_DEALS[filters.type])
   return mockRequest('members', members, [])
 }

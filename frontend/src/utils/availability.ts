@@ -28,3 +28,12 @@ export function summarizeAvailability(slots: TimeSlot[]): string {
   const hours = slots.length === 1 ? '1 hour' : `${slots.length} hours`
   return `${hours} a week · ${days.map((day) => day.short).join(', ')}`
 }
+
+const WEEKDAY_BY_DAY_INDEX: Weekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+// A start time's weekday and hour in the viewer's own clock, comparable with weekly hours already
+// converted to that clock (toViewerWeek), such as the "both free" hours on a profile.
+export const localSlotKey = (iso: string) => {
+  const date = new Date(iso)
+  return slotKey({ day: WEEKDAY_BY_DAY_INDEX[date.getDay()], startHour: date.getHours() })
+}

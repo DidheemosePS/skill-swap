@@ -1,25 +1,28 @@
-import { useState } from 'react'
 import { logAttendance } from '../../services/sessionService'
 import type { Session } from '../../types'
 import { getJoinState, JOIN_WINDOW_MINUTES } from '../../utils/sessions'
-import AlertBanner from '../common/AlertBanner'
 import Button from '../common/Button'
 import { getButtonClasses } from '../common/buttonStyles'
+import type { ButtonVariant } from '../common/buttonStyles'
+import { useToast } from '../../hooks/useToast'
 
 interface JoinMeetingButtonProps {
   session: Pick<Session, 'id' | 'startsAt' | 'durationMinutes' | 'meetingUrl'>
   now: number
   className?: string
+  // Secondary where another Join on the page is already the primary action.
+  variant?: ButtonVariant
+  // Named in the accessible label so a list of links can tell two Join buttons apart.
+  partnerName?: string
 }
 
-export default function JoinMeetingButton({ session, now, className = '' }: JoinMeetingButtonProps) {
-  const [hasLogError, setHasLogError] = useState(false)
+export default function JoinMeetingButton({ session, now, className = '', variant = 'primary', partnerName }: JoinMeetingButtonProps) {
+  const toast = useToast()
   const joinState = getJoinState(session, now)
 
   // The meeting opens either way; a failed log is surfaced because no-show checks rely on it.
   function recordJoin() {
-    setHasLogError(false)
-    logAttendance(session.id).catch(() => setHasLogError(true))
+    logAttendance(session.id).catch(() => toast.error("Your meeting opened, but we couldn't record that you joined.", recordJoin))
   }
 
   return (
@@ -31,19 +34,19 @@ export default function JoinMeetingButton({ session, now, className = '' }: Join
           target="_blank"
           rel="noopener noreferrer"
           onClick={recordJoin}
-          className={getButtonClasses('primary', className)}
+          aria-label={partnerName ? `Join meeting with ${partnerName}` : undefined}
+          className={getButtonClasses(variant, className)}
         >
-          <span aria-hidden="true">🎥</span> Join Meeting
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="6" width="13" height="12" rx="2" />
+            <path d="M16 10.5 21 8v8l-5-2.5" />
+          </svg>
+          Join meeting
         </a>
       ) : (
         <Button variant="secondary" disabled className={className}>
           {joinState === 'ended' ? 'Session ended' : `Join opens ${JOIN_WINDOW_MINUTES} min before`}
         </Button>
-      )}
-      {hasLogError && (
-        <div className="mt-3">
-          <AlertBanner message="Your meeting opened, but we couldn't record that you joined." onRetry={recordJoin} />
-        </div>
       )}
     </>
   )

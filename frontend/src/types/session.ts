@@ -84,3 +84,18 @@ export interface ReviewDraft {
   rating: number
   comment: string
 }
+
+// A request whose time isn't agreed yet, shown on the Sessions agenda at its first proposed time.
+export interface RequestedSession {
+  requestId: string
+  partner: User
+  skillName: string
+  swapType: SwapType
+  isTeaching: boolean
+  proposedSlots: string[]
+  returnSkillName: string | null
+  // When the request lapses unanswered; null once nothing can expire it.
+  expiresAt: string | null
+  // The member has to accept, suggest other times or decline.
+  awaitingMe: boolean
+}

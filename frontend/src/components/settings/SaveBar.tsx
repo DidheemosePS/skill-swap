@@ -4,9 +4,7 @@ import Button from '../common/Button'
 interface SaveBarProps {
   isDirty: boolean
   isSaving: boolean
-  justSaved: boolean
   errors: SettingsError[]
-  saveError: string | null
   tabLabels: Record<SettingsTab, string>
   onSave: () => void
   onDiscard: () => void
@@ -14,18 +12,14 @@ interface SaveBarProps {
 }
 
 // Pinned to the bottom while there's something to save, so the action is never off screen.
-export default function SaveBar({ isDirty, isSaving, justSaved, errors, saveError, tabLabels, onSave, onDiscard, onGoToTab }: SaveBarProps) {
+export default function SaveBar({ isDirty, isSaving, errors, tabLabels, onSave, onDiscard, onGoToTab }: SaveBarProps) {
   return (
-    <div aria-live="polite" className="fixed inset-x-0 bottom-0 z-20">
-      {justSaved && !isDirty && (
-        <p className="mx-auto mb-4 w-fit rounded-lg bg-ink px-4 py-2 text-sm font-medium text-surface shadow-lg">Changes saved</p>
-      )}
+    <div aria-live="polite" className="fixed inset-x-0 bottom-0 z-20 lg:left-(--sidebar-w)">
       {isDirty && (
         <div className="border-t border-line bg-surface shadow-[0_-4px_16px_rgb(0_0_0/0.06)]">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mx-auto flex max-w-page flex-col gap-3 px-4 py-3 sm:px-6 sm:flex-row lg:px-10 sm:items-center sm:justify-between">
             <div className="min-w-0 text-sm">
-              <p className="font-medium">You have unsaved changes</p>
-              {saveError && <p role="alert" className="text-danger">{saveError}</p>}
+              <p className="font-medium">Unsaved changes</p>
               {errors.length > 0 && (
                 <ul role="alert" className="mt-1 space-y-0.5 text-danger">
                   {errors.map((error) => (

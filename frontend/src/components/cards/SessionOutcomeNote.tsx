@@ -10,8 +10,8 @@ interface SessionOutcomeNoteProps {
 
 function Quote({ label, text }: { label: string; text: string }) {
   return (
-    <blockquote className="mt-3 rounded-lg bg-canvas p-3 text-sm [overflow-wrap:anywhere]">
-      <p className="mb-1 text-xs font-semibold text-muted">{label}</p>
+    <blockquote className="mt-2 rounded-lg bg-canvas p-3 text-sm [overflow-wrap:anywhere]">
+      <p className="mb-1 text-xs font-medium text-muted">{label}</p>
       {text}
     </blockquote>
   )
@@ -25,59 +25,51 @@ export default function SessionOutcomeNote({ session, phase, now }: SessionOutco
   const { partner, isTeaching, swapType, teacherId, teacherMarkedAt, noShow, dispute, cancellation } = session
   const firstName = partner.name.split(' ')[0]
   const isMine = (userId: string | null) => userId === myId
-  const muted = 'mt-3 text-sm text-muted'
+  const muted = 'mt-1 text-sm text-muted'
+  // Whose credit is waiting, named with its noun, never "escrow": the same word as the navbar's "held".
+  const held = swapType === 'two_way' ? 'Free swap' : isTeaching ? `${firstName}'s credit held` : 'Your credit held'
 
   if (phase === 'awaiting_settlement') {
-    return <p className={muted}>If nobody marks it, it goes to admin review in <Countdown ms={getAutoResolveEndMs(session) - now} />.</p>
+    return <p className={muted}>{held} · goes to review in <Countdown ms={getAutoResolveEndMs(session) - now} /></p>
   }
   if (phase === 'pending_learner_review' && teacherMarkedAt) {
     const left = <Countdown ms={getReviewWindowEndMs(teacherMarkedAt) - now} />
     return isTeaching ? (
-      <p className={muted}>You marked this completed. Your 1 credit arrives when {firstName} confirms, or in {left} unless {firstName} disputes it.</p>
+      <p className={muted}>You marked it complete · paid in {left} unless disputed</p>
     ) : (
-      <p className={muted}>{firstName} marked this completed. Your 1 credit goes to them when you confirm, or in {left} unless you dispute it.</p>
+      <p className={muted}>{firstName} marked it complete · pays in {left} unless you dispute</p>
     )
   }
   if (phase === 'no_show_confirmed' && noShow) {
-    const absent = isMine(noShow.absentId) ? 'you' : firstName
+    const absent = isMine(noShow.absentId) ? 'You' : firstName
     const teacherAbsent = noShow.absentId === teacherId
     const credit = swapType === 'two_way'
       ? ''
       : teacherAbsent
-        ? (isTeaching ? ` ${firstName}'s credit was refunded.` : ' Your 1 credit was refunded.')
-        : (isTeaching ? ' You received 1 credit.' : ` Your 1 credit went to ${firstName}.`)
-    // With no meeting record the records decide it; a member who joined at all was judged by an admin.
-    const hasRecord = session.attendance.some((record) => record.userId === noShow.absentId)
-    const finder = hasRecord ? 'An admin found that' : 'The meeting records show'
-    return <p className={muted}>{finder} {absent} didn't attend.{credit}</p>
+        ? ' · credit refunded'
+        : (isTeaching ? ' · +1 credit to you' : ` · credit paid to ${firstName}`)
+    return <p className={muted}>{absent} didn't attend{credit}</p>
   }
   if (phase === 'disputed' && dispute) {
-    const opener = {
-      no_show: isMine(dispute.raisedBy) ? 'You reported a no-show' : `${firstName} reported a no-show`,
-      completion: isMine(dispute.raisedBy) ? `You disputed ${firstName}'s marking` : `${firstName} disputed your marking`,
-      no_outcome: 'Nobody marked an outcome within 72 hours',
-    }[dispute.cause]
     // A no-show report is checked against the meeting records for 24 hours before an admin gets it.
     const verifyEndMs = dispute.cause === 'no_show' ? getVerificationEndMs(dispute.raisedAt) : null
-    const absent = isMine(dispute.raisedBy) ? firstName : 'you'
-    const progress = verifyEndMs === null
-      ? 'Any credit stays in escrow until an admin decides.'
-      : verifyEndMs > now
-        ? <>We're checking the meeting records, with a result in <Countdown ms={verifyEndMs - now} />. Any credit stays in escrow until then.</>
-        : `The meeting records show ${absent} joined, so an admin decides. Any credit stays in escrow until then.`
+    const progress = verifyEndMs !== null && verifyEndMs > now
+      ? <>Result in <Countdown ms={verifyEndMs - now} /></>
+      : 'An admin decides'
     return (
       <>
         {dispute.reason && (
-          <Quote label={isMine(dispute.raisedBy) ? 'Your reason for disputing' : `${firstName}'s reason for disputing`} text={dispute.reason} />
+          <Quote label={isMine(dispute.raisedBy) ? 'Your reason' : `${firstName}'s reason`} text={dispute.reason} />
         )}
-        <p className={muted}>{opener}. {progress}</p>
+        {/* The row's status already says who raised it, so the note only adds when it ends and the credit. */}
+        <p className={muted}>{progress} · {held}</p>
       </>
     )
   }
   if (phase === 'cancelled' && cancellation) {
     return (
       <Quote
-        label={isMine(cancellation.cancelledBy) ? 'Your reason for cancelling' : `${firstName}'s reason for cancelling`}
+        label={isMine(cancellation.cancelledBy) ? 'Your reason' : `${firstName}'s reason`}
         text={cancellation.reason}
       />
     )

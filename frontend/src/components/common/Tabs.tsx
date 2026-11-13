@@ -1,5 +1,6 @@
 import { useId, useRef } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
+import { getToggleClasses } from './buttonStyles'
 
 interface Tab<T extends string> {
   id: T
@@ -12,30 +13,36 @@ interface TabsProps<T extends string> {
   active: T
   onChange: (id: T) => void
   children: ReactNode
+  // Settings lists its sections down the side on wide screens; Wallet keeps a row inside its panel header.
+  vertical?: boolean
+  listClassName?: string
+  panelClassName?: string
 }
 
-export default function Tabs<T extends string>({ label, tabs, active, onChange, children }: TabsProps<T>) {
+export default function Tabs<T extends string>({ label, tabs, active, onChange, children, vertical = false, listClassName = '', panelClassName = 'mt-5' }: TabsProps<T>) {
   const baseId = useId()
   const listRef = useRef<HTMLDivElement>(null)
 
   // Tab pattern: Tab enters the active tab once, and arrow keys switch between tabs.
   function handleKeyDown(event: KeyboardEvent, index: number) {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+    const forward = ['ArrowRight', 'ArrowDown'].includes(event.key)
+    if (!forward && !['ArrowLeft', 'ArrowUp'].includes(event.key)) return
     event.preventDefault()
-    const delta = event.key === 'ArrowRight' ? 1 : -1
+    const delta = forward ? 1 : -1
     const next = (index + delta + tabs.length) % tabs.length
     onChange(tabs[next].id)
     listRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus()
   }
 
   return (
-    <div>
+    <div className={vertical ? 'lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:items-start lg:gap-8' : ''}>
       <div
         ref={listRef}
         role="tablist"
         aria-label={label}
-        className="grid gap-1 rounded-lg border border-line bg-surface p-1"
-        style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
+        aria-orientation={vertical ? 'vertical' : 'horizontal'}
+        // Scrolls sideways on a phone rather than wrapping, so the tabs stay one row.
+        className={`flex gap-1 overflow-x-auto ${vertical ? 'lg:sticky lg:top-6 lg:flex-col' : ''} ${listClassName}`}
       >
         {tabs.map((tab, index) => (
           <button
@@ -48,13 +55,13 @@ export default function Tabs<T extends string>({ label, tabs, active, onChange, 
             tabIndex={tab.id === active ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`min-h-11 rounded-md px-2 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent ${tab.id === active ? 'bg-accent text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`}
+            className={getToggleClasses(tab.id === active, 'text-left')}
           >
             {tab.label}
           </button>
         ))}
       </div>
-      <div id={`${baseId}-panel`} role="tabpanel" aria-labelledby={`${baseId}-${active}`} className="mt-5">
+      <div id={`${baseId}-panel`} role="tabpanel" aria-labelledby={`${baseId}-${active}`} className={vertical ? `${panelClassName} lg:mt-0` : panelClassName}>
         {children}
       </div>
     </div>

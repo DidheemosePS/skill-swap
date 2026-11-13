@@ -49,3 +49,29 @@ export function getSessionPhase({ status, startsAt, durationMinutes }: Pick<Sess
 // A one-way learner can only cancel. Anyone who teaches in the session can also offer new times.
 export const canOfferAlternatives = ({ teacherId, swapType }: Pick<Session, 'teacherId' | 'swapType'>, userId: string) =>
   teacherId === userId || swapType === 'two_way'
+
+const SOON_MINUTES = 60
+
+// The session the dashboard should lead with: joinable now, or starting within the hour.
+export function getImminentSession<T extends Pick<Session, 'startsAt' | 'durationMinutes'>>(sessions: T[], now: number): T | null {
+  return (
+    sessions.find((session) => {
+      const state = getJoinState(session, now)
+      return state === 'open' || (state === 'too_early' && Date.parse(session.startsAt) - now <= SOON_MINUTES * MINUTE_MS)
+    }) ?? null
+  )
+}
+
+// What a settled session did to the member's balance, for the history statement: +1 taught, -1 learned,
+// 0 when no credit moved (a free swap, a cancellation, or a refund after the teacher was absent).
+export function getCreditChange({ swapType, status, teacherId, noShow }: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow'>, userId: string): number {
+  if (swapType === 'two_way' || status === 'cancelled') return 0
+  if (status === 'no_show_confirmed' && noShow?.absentId === teacherId) return 0
+  return teacherId === userId ? 1 : -1
+}
+
+// The statement's totals for the History heading: credits earned and spent across the listed sessions.
+export function getHistoryTotals(sessions: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow'>[], userId: string) {
+  const changes = sessions.map((session) => getCreditChange(session, userId))
+  return { earned: changes.filter((n) => n > 0).length, spent: changes.filter((n) => n < 0).length }
+}

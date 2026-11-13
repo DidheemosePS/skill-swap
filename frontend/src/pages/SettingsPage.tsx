@@ -1,7 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import AlertBanner from '../components/common/AlertBanner'
 import AppNavbar from '../components/common/AppNavbar'
-import Skeleton from '../components/common/Skeleton'
 import Tabs from '../components/common/Tabs'
 import AccountSection from '../components/settings/AccountSection'
 import AvailabilitySection from '../components/settings/AvailabilitySection'
@@ -15,12 +14,13 @@ import { useSettingsForm } from '../hooks/useSettingsForm'
 import type { SettingsTab } from '../hooks/useSettingsForm'
 import { fetchSettings } from '../services/settingsService'
 import type { ProfileSettings } from '../types'
+import { SettingsBodySkeleton } from '../components/common/pageSkeletons'
 
 const TAB_LABELS: Record<SettingsTab, string> = {
-  profile: 'Public Profile',
-  skills: 'Skills & Expertise',
-  availability: 'Weekly Availability',
-  account: 'Account & Security',
+  profile: 'Profile',
+  skills: 'Skills',
+  availability: 'Availability',
+  account: 'Account',
 }
 
 const TAB_IDS = Object.keys(TAB_LABELS) as SettingsTab[]
@@ -40,14 +40,15 @@ function SettingsForm({ initial }: { initial: ProfileSettings }) {
     label: (
       <>
         {TAB_LABELS[id]}
-        {form.changedTabs.includes(id) && <span aria-label=", unsaved changes" className="ml-1">•</span>}
+        {/* A dot, plus words for screen readers, marks a section with unsaved edits. */}
+        {form.changedTabs.includes(id) && <span role="img" aria-label=", unsaved changes" className="ml-2 inline-block size-1.5 rounded-full bg-held" />}
       </>
     ),
   }))
 
   return (
     <>
-      <Tabs label="Settings sections" tabs={tabs} active={tab} onChange={setTab}>
+      <Tabs label="Settings sections" tabs={tabs} active={tab} onChange={setTab} vertical>
         {tab === 'profile' && <ProfileSection draft={form.draft} profileId={myId} onChange={form.update} />}
         {tab === 'skills' && <SkillsSection draft={form.draft} onChange={form.update} />}
         {tab === 'availability' && <AvailabilitySection draft={form.draft} onChange={form.update} />}
@@ -65,9 +66,7 @@ function SettingsForm({ initial }: { initial: ProfileSettings }) {
       <SaveBar
         isDirty={form.isDirty}
         isSaving={form.isSaving}
-        justSaved={form.justSaved}
         errors={form.errors}
-        saveError={form.saveError}
         tabLabels={TAB_LABELS}
         onSave={form.save}
         onDiscard={form.discard}
@@ -86,14 +85,11 @@ export default function SettingsPage() {
       <title>Settings · Skill Swap</title>
       <AppNavbar />
       {/* Bottom padding keeps the last field clear of the pinned save bar. */}
-      <main className="mx-auto max-w-7xl px-4 py-6 pb-40 sm:py-8 sm:pb-32">
-        <h1 className="text-2xl font-semibold text-balance sm:text-3xl">Settings</h1>
+      <main id="main" tabIndex={-1} className="outline-none mx-auto max-w-page px-4 py-6 pb-40 sm:px-6 sm:py-8 sm:pb-32 lg:px-10">
+        <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Settings</h1>
         <div className="mt-6">
           {settings.data === null && settings.status === 'loading' && (
-            <div role="status" aria-label="Loading settings" className="space-y-4">
-              <Skeleton className="h-12 rounded-lg" />
-              <Skeleton className="h-64 rounded-xl" />
-            </div>
+            <div role="status" aria-label="Loading settings"><SettingsBodySkeleton /></div>
           )}
           {settings.status === 'error' && <AlertBanner message="We couldn't load your settings." onRetry={settings.retry} />}
           {/* Mounted once with the loaded values; later saves update the form's own copy. */}

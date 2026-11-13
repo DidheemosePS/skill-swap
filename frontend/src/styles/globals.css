@@ -1,27 +1,131 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-canvas: #f7f6f2;
+  /* People & swap in black and white: a white page, light grey cards without borders, near-black actions.
+     Bricolage Grotesque carries headings and figures, Instrument Sans the reading text; people carry the colour. */
+  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  /* canvas: hovers and inset panels; card: the grey every card sits in; surface: inputs, menus, dialogs. */
+  --color-canvas: #ececee;
+  --color-shell: #ffffff;
   --color-surface: #ffffff;
-  --color-ink: #1c1f1d;
-  --color-muted: #5d645f;
-  --color-line: #dcdcd5;
-  --color-accent: #0f6b55;
-  --color-accent-strong: #0b5643;
-  --color-accent-soft: #e3f1ec;
-  --color-star: #9a5b00;
+  --color-card: #f4f4f5;
+  --color-ink: #16181d;
+  --color-muted: #4f5159;
+  --color-faint: #6c6e76;
+  --color-line: #e4e4e7;
+  /* Link blue: inline links, focus rings and selection. */
+  --color-accent: #1b61c9;
+  --color-accent-strong: #1b61c9;
+  --color-accent-soft: #e8f0fb;
+  /* Near-black: the one primary action, the current nav item and the dark "now" card. */
+  --color-next: #16181d;
+  --color-next-strong: #0b0c0f;
+  --color-next-soft: #e7e7ea;
+  /* Status tags only: deep coral for credits held, green for free swaps. */
+  --color-held: #b13a12;
+  --color-held-soft: #fbe9e2;
+  --color-success: #1f7a4a;
+  --color-success-soft: #e6f2e6;
+  --color-star: #8a5a00;
   --color-danger: #a32a1f;
   --color-danger-soft: #fbeae7;
+  /* Inputs 8px, rows 10px, buttons 12px, cards 16px, feature cards 20px. */
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+/* Headings speak in the display face, slightly tightened; body copy stays in the reading face. */
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  h1 {
+    letter-spacing: -0.03em;
+  }
+}
+
+/* Hours, credits, times and counts on even-width digits, so columns of figures line up. */
+@utility figures {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The width every app page centres in (max-w-page); lifted when the sidebar collapses to its rail. */
+@utility max-w-page {
+  max-width: var(--page-max, 80rem);
+}
+
+/* From lg up the sidebar is fixed on the left (Sidebar.tsx), full or collapsed to an icon rail. Its width is a
+   variable so the page and pinned bars (the settings save bar) shift right by the same amount. */
+@media (width >= 64rem) {
+  :root:has([data-sidebar='full']) {
+    --sidebar-w: 15rem;
+  }
+  :root:has([data-sidebar='rail']) {
+    --sidebar-w: 4rem;
+    /* Hiding the sidebar is a request for room, so pages drop their reading cap and use the full width. */
+    --page-max: none;
+  }
+  body {
+    padding-left: var(--sidebar-w, 0);
+  }
 }
 
 html {
   color-scheme: light;
+  /* Focus and anchor scrolling stop below the sticky navbar (64px; 117px on phones with the link row),
+     so a newly focused element such as the action notice is never hidden under it. */
+  scroll-padding-top: 5rem;
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 8.5rem;
+  }
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--color-canvas);
+  caret-color: var(--color-accent);
+  background: var(--color-shell);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Phones show the main links as fixed bottom tabs; pages that have them get matching room at the end,
+   so the last row is never hidden behind the bar. */
+@media (width < 48rem) {
+  body:has([data-bottom-tabs]) {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Popovers sit beside their trigger where anchor positioning exists; elsewhere the UA centres them. */
+@supports (anchor-name: --a) {
+  .anchored-popover {
+    inset: auto;
+    margin: 8px 0 0;
+    top: anchor(bottom);
+    left: anchor(left);
+    position-try-fallbacks: flip-block, flip-inline;
+  }
+
+  /* Phones: too narrow to sit beside the trigger, so span the gutters and stay below it. */
+  @media (max-width: 639px) {
+    .anchored-popover {
+      left: 1rem;
+      right: 1rem;
+      width: auto;
+      position-try-fallbacks: flip-block;
+    }
+  }
 }

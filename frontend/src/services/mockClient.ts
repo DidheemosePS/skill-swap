@@ -1,4 +1,5 @@
-const MOCK_LATENCY_MS = 500
+// VITE_MOCK_LATENCY slows every mock down (in ms), to look at loading states.
+const MOCK_LATENCY_MS = Number(import.meta.env.VITE_MOCK_LATENCY) || 500
 
 const readFeatures = (value: unknown) => String(value ?? '').split(',')
 

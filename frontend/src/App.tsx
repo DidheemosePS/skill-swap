@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
+import MessageToasts from './components/chat/MessageToasts'
 import AuthGate from './components/common/AuthGate'
 import AuthProvider from './context/AuthProvider'
+import ToastProvider from './context/ToastProvider'
 import WalletProvider from './context/WalletProvider'
 import WebSocketProvider from './context/WebSocketProvider'
 import DashboardPage from './pages/DashboardPage'
@@ -23,6 +25,7 @@ const router = createBrowserRouter([
         <AuthGate>
           <WalletProvider>
             <Outlet />
+            <MessageToasts />
           </WalletProvider>
         </AuthGate>
       </AuthProvider>
@@ -42,11 +45,14 @@ const router = createBrowserRouter([
   },
 ])
 
-// WebSocketProvider stays outermost because WalletProvider listens to its chat events.
+// WebSocketProvider stays outermost because WalletProvider listens to its chat events. Toasts wrap the router,
+// so a failure still shows after the page that raised it navigates away.
 export default function App() {
   return (
     <WebSocketProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </WebSocketProvider>
   )
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { fetchSlotStatus } from '../../services/slotService'
 import { getCustomSlotError, getCustomSlotRange } from '../../utils/timeSlots'
 import Button from '../common/Button'
+import { useToast } from '../../hooks/useToast'
 
 interface CustomTimeFieldProps {
   peerId: string
@@ -16,6 +17,7 @@ export default function CustomTimeField({ peerId, requestId, isFull, selected, o
   const [value, setValue] = useState('')
   const [isChecking, setIsChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   async function add() {
     // The input holds local time with no timezone, and Date reads it that way.
@@ -37,7 +39,7 @@ export default function CustomTimeField({ peerId, requestId, isFull, selected, o
         setError('That time clashes with a session or a time on hold.')
       }
     } catch {
-      setError("We couldn't check that time. Please try again.")
+      toast.error("We couldn't check that time. Please try again.")
     } finally {
       setIsChecking(false)
     }

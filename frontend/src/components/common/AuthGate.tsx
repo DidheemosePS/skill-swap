@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import AlertBanner from './AlertBanner'
+import RouteSkeleton from './RouteSkeleton'
 import SignInPanel from './SignInPanel'
-import Skeleton from './Skeleton'
 
 // Decides what every route shows before its page: a loader, the sign-in panel, or a redirect that keeps
 // members and onboarding in step. Pages behind it can rely on a signed-in, correctly onboarded member.
@@ -22,15 +22,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </main>
       )
     }
-    return (
-      <div role="status" aria-label="Loading your account">
-        <Skeleton className="h-16 rounded-none" />
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-8">
-          <Skeleton className="h-9 w-56" />
-          <Skeleton className="h-64 rounded-xl" />
-        </div>
-      </div>
-    )
+    return <RouteSkeleton pathname={pathname} />
   }
 
   // A new member finishes onboarding before anything else, and an onboarded one never sees it again.

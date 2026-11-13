@@ -1,27 +1,30 @@
-import type { CodeMessage, TextMessage } from '../../types'
-import CodeSnippet from './CodeSnippet'
+import type { ReactNode } from 'react'
+import type { TextMessage } from '../../types'
 
 interface MessageBubbleProps {
-  message: TextMessage | CodeMessage
+  message: TextMessage
   isMine: boolean
-  timeLabel: string
+  // Null inside a run of messages: the time shows once, under the run's last message.
+  timeLabel: string | null
+  // The member's own delivery state: Sending…, Sent, or Couldn't send with Retry.
+  status?: ReactNode
 }
 
-export default function MessageBubble({ message, isMine, timeLabel }: MessageBubbleProps) {
+export default function MessageBubble({ message, isMine, timeLabel, status }: MessageBubbleProps) {
   return (
     <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-      {message.kind === 'code' ? (
-        <div className="w-full max-w-xl">
-          <CodeSnippet language={message.language} code={message.code} />
-        </div>
-      ) : (
-        <p
-          className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap [overflow-wrap:anywhere] sm:max-w-md ${isMine ? 'bg-accent text-white' : 'border border-line bg-surface'}`}
-        >
-          {message.body}
+      <p
+        className={`max-w-[85%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap [overflow-wrap:anywhere] sm:max-w-md ${isMine ? 'bg-next text-white' : 'bg-card'}`}
+      >
+        {message.body}
+      </p>
+      {(timeLabel || status) && (
+        <p className="mt-1 text-xs text-muted">
+          {timeLabel && <time dateTime={message.sentAt} className="figures">{timeLabel}</time>}
+          {timeLabel && status && ' · '}
+          {status && <span aria-live="polite">{status}</span>}
         </p>
       )}
-      <time dateTime={message.sentAt} className="mt-1 text-xs text-muted">{timeLabel}</time>
     </div>
   )
 }

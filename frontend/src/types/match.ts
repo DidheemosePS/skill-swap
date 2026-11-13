@@ -29,5 +29,10 @@ export interface SwapOffer {
 export interface MatchRecommendation extends Match {
   peer: User
   hasPendingRequest: boolean
+  // Who sent the pending request, so the dashboard knows whether the member's credit is held.
+  pendingRequestFrom: 'me' | 'them' | null
+  // The pending request itself, so the dashboard can accept, decline or withdraw it in place.
+  // awaitingMe is true when the other member proposed the current times, so it's the member's turn.
+  pendingRequest: { id: string; proposedSlots: string[]; skillName: string | null; awaitingMe: boolean } | null
   nextSessionAt: string | null
 }

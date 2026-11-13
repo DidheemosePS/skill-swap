@@ -5,11 +5,11 @@ import { cancelSession } from '../../services/sessionCancellation'
 import { SlotTakenError } from '../../services/swapRequestService'
 import type { SessionDetail } from '../../types'
 import { formatSlotDateTime } from '../../utils/timeSlots'
-import AlertBanner from '../common/AlertBanner'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 import NoteField from '../common/NoteField'
 import TimeProposalFields from './TimeProposalFields'
+import { useToast } from '../../hooks/useToast'
 
 interface CancelSessionModalProps {
   session: SessionDetail
@@ -29,7 +29,7 @@ export default function CancelSessionModal({ session, mode, canOfferTimes, onClo
   const [reason, setReason] = useState('')
   const [isOfferingTimes, setIsOfferingTimes] = useState(mode === 'reschedule')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   const alternatives = isOfferingTimes ? proposal.allTimes : []
   const isReady = reason.trim() !== '' && (!isOfferingTimes || alternatives.length > 0)
@@ -40,18 +40,17 @@ export default function CancelSessionModal({ session, mode, canOfferTimes, onClo
 
   async function submit() {
     setIsSubmitting(true)
-    setError(null)
     try {
       await cancelSession(session.id, reason.trim(), [...alternatives].sort())
       onDone()
     } catch (cause) {
       if (cause instanceof SlotTakenError) {
-        setError('One of those times was just taken. Please pick again.')
+        toast.error('One of those times was just taken. Please pick again.')
         proposal.reset()
       } else if (cause instanceof SessionClosedError) {
-        setError('This session has already started or been cancelled.')
+        toast.error('This session has already started or been cancelled.')
       } else {
-        setError("We couldn't cancel this session. Please try again.")
+        toast.error("We couldn't cancel this session. Please try again.")
       }
       setIsSubmitting(false)
     }
@@ -86,8 +85,8 @@ export default function CancelSessionModal({ session, mode, canOfferTimes, onClo
         />
       )}
       {!isOfferingTimes && creditLine && <p className="mt-3 text-sm text-muted">{creditLine}</p>}
-      {isOfferingTimes && <p className="mt-3 text-sm text-muted">Chat stays locked until {firstName} accepts, unless you already have another session together.</p>}
-      {error && <div className="mt-4"><AlertBanner message={error} /></div>}
+      {/* Only true when there's no chat yet; members who already talk keep their chat. */}
+      {isOfferingTimes && !session.conversationExists && <p className="mt-3 text-sm text-muted">Chat stays locked until {firstName} accepts, unless you already have another session together.</p>}
 
       <div className="mt-5 flex justify-end gap-3">
         <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Keep session</Button>

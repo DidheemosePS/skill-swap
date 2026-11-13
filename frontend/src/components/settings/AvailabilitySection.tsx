@@ -1,7 +1,9 @@
+import InfoTip from '../common/InfoTip'
 import type { SettingsUpdate } from '../../hooks/useSettingsForm'
 import type { ProfileSettings, TimeSlot } from '../../types'
 import { getViewerTimezone, slotKey, summarizeAvailability } from '../../utils/availability'
 import AvailabilityPicker from '../schedule/AvailabilityPicker'
+import SettingsPanel from './SettingsPanel'
 
 interface AvailabilitySectionProps {
   draft: ProfileSettings
@@ -19,16 +21,20 @@ export default function AvailabilitySection({ draft, onChange }: AvailabilitySec
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-      <div>
-        <AvailabilityPicker selected={slots} onSlotChange={setSlot} />
-        <p className="mt-3 text-sm text-muted">Times shown in {getViewerTimezone()}.</p>
-      </div>
-      <aside className="space-y-3 rounded-xl border border-line bg-surface p-5 text-sm">
-        <p className="font-semibold">{summarizeAvailability(slots)}</p>
-        <p className="text-muted">Members book from these hours. After you save, your matches and open times update to match.</p>
-        <p className="text-muted">Sessions and requests you already have keep their times.</p>
-      </aside>
-    </div>
+    <SettingsPanel
+      id="hours-heading"
+      title="Weekly hours"
+      hint={summarizeAvailability(slots)}
+      aside={
+        <span className="flex items-center gap-0.5 text-sm text-muted">
+          {getViewerTimezone()}
+          <InfoTip label="About your hours" align="end">
+            Members book from these hours. Booked sessions keep their times.
+          </InfoTip>
+        </span>
+      }
+    >
+      <AvailabilityPicker selected={slots} onSlotChange={setSlot} />
+    </SettingsPanel>
   )
 }

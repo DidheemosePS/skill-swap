@@ -42,7 +42,7 @@ export const mockMatches: Match[] = [
     peerId: 'user-evan',
     swapType: 'one_way',
     score: 79,
-    teachesYou: ['skill-spanish'],
+    teachesYou: ['skill-french'],
     learnsFromYou: [],
     creditCost: 1,
   },

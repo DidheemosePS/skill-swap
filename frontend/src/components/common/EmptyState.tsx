@@ -1,17 +1,19 @@
 import type { ReactNode } from 'react'
+import StateCard from './StateCard'
+import type { StateTone } from './StateCard'
+import { EmptyMark } from './stateIcons'
+import type { StateIconName } from './stateIcons'
 
 interface EmptyStateProps {
   title: string
-  description: string
+  description?: string
   action?: ReactNode
+  icon?: StateIconName
+  tone?: StateTone
+  stacked?: boolean
 }
 
-export default function EmptyState({ title, description, action }: EmptyStateProps) {
-  return (
-    <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center">
-      <p className="font-semibold">{title}</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
-    </div>
-  )
+// Nothing here yet: an empty seat, a short line and where to go instead.
+export default function EmptyState({ title, description, action, icon = 'people', tone = 'card', stacked }: EmptyStateProps) {
+  return <StateCard role="status" visual={<EmptyMark icon={icon} />} title={title} description={description} action={action} tone={tone} stacked={stacked} />
 }

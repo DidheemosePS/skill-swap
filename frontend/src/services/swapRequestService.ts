@@ -1,3 +1,4 @@
+import { requestNoun } from '../utils/chat'
 import {
   CURRENT_USER_ID,
   mockConversations,
@@ -60,7 +61,7 @@ export async function createSwapRequest(payload: CreateSwapRequestPayload): Prom
   }
 
   const conversation = getOrCreateConversation(payload.peerId, now)
-  conversation.lastMessagePreview = 'You sent a swap request.'
+  conversation.lastMessagePreview = `You sent a ${requestNoun(payload.swapType)}.`
   conversation.lastMessageAt = now
 
   mockMessages.push({

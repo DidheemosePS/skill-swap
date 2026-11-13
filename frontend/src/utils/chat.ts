@@ -1,4 +1,4 @@
-import type { ChatAccess, Message } from '../types'
+import type { ChatAccess, Message, SwapType } from '../types'
 import { formatSlotDateTime, formatSlotTime } from './timeSlots'
 
 // Today's messages only need the time; older ones also need the date.
@@ -22,3 +22,7 @@ export function getChatAccess(messages: Message[], currentUserId: string, hasSes
   if (latest.status !== 'pending') return 'closed'
   return latest.lastProposedBy === currentUserId ? 'waiting_on_peer' : 'waiting_on_you'
 }
+
+// A credit booking isn't a swap, so the noun follows the type: free two-way requests are swaps,
+// one-way ones are session requests.
+export const requestNoun = (swapType: SwapType) => (swapType === 'two_way' ? 'swap request' : 'session request')

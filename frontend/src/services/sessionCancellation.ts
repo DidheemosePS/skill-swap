@@ -1,5 +1,5 @@
 import { CURRENT_USER_ID, mockMessages, mockSessions, mockTransactions } from '../data/mockData'
-import type { Session, SwapRequestMessage } from '../types'
+import type { Message, Session, SwapRequestMessage } from '../types'
 import { canOfferAlternatives } from '../utils/sessions'
 import { getCustomSlotError } from '../utils/timeSlots'
 import { emitChatEvent } from './chatSocket'
@@ -12,7 +12,7 @@ import { getOrCreateConversation, getRequestExpiry, SlotTakenError } from './swa
 const MOCK_PEER_ANSWER_MS = 4000
 
 // New times from the member who called off a session, in the same thread as the old request.
-function offerAlternatives(session: Session, actorId: string, recipientId: string, alternatives: string[], now: string) {
+function offerAlternatives(session: Session, actorId: string, recipientId: string, alternatives: string[], reason: string, now: string) {
   const conversation = getOrCreateConversation(actorId === CURRENT_USER_ID ? recipientId : actorId, now)
   const sessionId = `session-${crypto.randomUUID()}`
   const message: SwapRequestMessage = {
@@ -30,7 +30,8 @@ function offerAlternatives(session: Session, actorId: string, recipientId: strin
       learnerId: session.learnerId,
       skillId: session.skillId,
       returnSkillId: session.returnSkillId,
-      note: null,
+      // The reason travels with the new times, so the other member reads why on the request itself.
+      note: reason,
       counterNote: null,
       proposedSlots: alternatives,
       lastProposedBy: actorId,
@@ -70,14 +71,20 @@ export function cancelSessionAs(sessionId: string, actorId: string, reason: stri
     swapRequest.cancelReason = reason
     swapRequest.hasAlternatives = alternatives.length > 0
     releaseRequestHolds(swapRequest.id)
-    publish(requestMessage, 'Session cancelled.')
+    // A reschedule is said as a move, not a cancellation, so the thread doesn't read as the end of it.
+    publish(requestMessage, alternatives.length > 0 ? 'Session moved: new times proposed.' : 'Session cancelled.')
+    // The reason goes into the thread as the member's own message, as the cancel dialog promises,
+    // so the other member reads why at the time it happened rather than under the old request's date.
+    const note: Message = { id: `msg-${crypto.randomUUID()}`, conversationId: requestMessage.conversationId, senderId: actorId, sentAt: now, kind: 'text', body: reason }
+    mockMessages.push(note)
+    emitChatEvent({ type: 'message', message: structuredClone(note) })
   }
 
   if (alternatives.length === 0) {
     refundIfPaid({ ...session, sessionId })
     return null
   }
-  const offer = offerAlternatives(session, actorId, otherId, alternatives, now)
+  const offer = offerAlternatives(session, actorId, otherId, alternatives, reason, now)
   emitChatEvent({ type: 'message', message: structuredClone(offer) })
   return offer
 }

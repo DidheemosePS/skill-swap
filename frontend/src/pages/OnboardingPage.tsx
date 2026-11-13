@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import SwapCard from '../components/cards/SwapCard'
-import AlertBanner from '../components/common/AlertBanner'
 import Button from '../components/common/Button'
 import SkillSelector from '../components/common/SkillSelector'
 import StepIndicator from '../components/common/StepIndicator'
@@ -9,6 +8,8 @@ import { useCurrentUser } from '../hooks/useAuth'
 import { useOnboardingForm } from '../hooks/useOnboardingForm'
 import { useSkills } from '../hooks/useSkills'
 import { getViewerTimezone, summarizeAvailability } from '../utils/availability'
+import { GiftIcon } from '../components/common/icons'
+import BrandMark from '../components/common/BrandMark'
 
 const STEP_LABELS = ['Teach', 'Learn', 'Availability']
 
@@ -35,9 +36,9 @@ export default function OnboardingPage() {
   const sharedSelectorProps = { skills, status, onRetry: retry }
 
   return (
-    <main className={`mx-auto w-full px-4 py-8 sm:py-12 ${form.step === 3 ? 'max-w-5xl' : 'max-w-2xl'}`}>
+    <main id="main" tabIndex={-1} className={`outline-none mx-auto w-full px-4 py-8 sm:py-12 ${form.step === 3 ? 'max-w-5xl' : 'max-w-2xl'}`}>
       <title>Set up your profile · Skill Swap</title>
-      <p className="mb-8 font-semibold">Skill Swap</p>
+      <p className="mb-8"><BrandMark /></p>
       <StepIndicator steps={STEP_LABELS} current={form.step} />
 
       <h1 ref={headingRef} tabIndex={-1} className="mt-8 text-2xl font-semibold text-balance outline-none sm:text-3xl">
@@ -87,16 +88,10 @@ export default function OnboardingPage() {
               learnSkills={form.learnSkills}
               availabilitySummary={summarizeAvailability(form.slots)}
             />
-            <p className="rounded-lg bg-accent-soft p-4 text-sm font-medium text-accent-strong">
-              <span aria-hidden="true">🎁 </span>Complete onboarding to claim 1 free credit
+            <p className="flex items-center gap-2 rounded-lg bg-success-soft p-4 text-sm font-medium text-success">
+              <GiftIcon />Finish to get 1 free credit
             </p>
           </aside>
-        </div>
-      )}
-
-      {form.submitError && (
-        <div className="mt-6">
-          <AlertBanner message={form.submitError} />
         </div>
       )}
 

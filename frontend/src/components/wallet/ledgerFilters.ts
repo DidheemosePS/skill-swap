@@ -6,14 +6,14 @@ export const LEDGER_FILTERS: { id: LedgerFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'earned', label: 'Earned' },
   { id: 'spent', label: 'Spent' },
-  { id: 'escrow', label: 'Escrow' },
+  { id: 'escrow', label: 'Held' },
 ]
 
 export const TYPE_LABELS: Record<TransactionType, string> = {
-  teaching_reward: 'Teaching Reward',
-  onboarding_bonus: 'Onboarding Bonus',
-  session_booking: 'Session Booking',
-  escrow_refund: 'Escrow Refund',
+  teaching_reward: 'Taught a session',
+  onboarding_bonus: 'Welcome credit',
+  session_booking: 'Booked a session',
+  escrow_refund: 'Credit returned',
 }
 
 // A refund sits under Spent, next to the booking it reverses, rather than counting as earned.
@@ -29,5 +29,3 @@ export function matchesFilter(entry: LedgerEntry, filter: LedgerFilter): boolean
 // The filter lives in the URL, so an unknown value falls back to showing everything.
 export const parseFilter = (value: string | null): LedgerFilter =>
   LEDGER_FILTERS.find((item) => item.id === value)?.id ?? 'all'
-
-export const formatCredits = (count: number) => `${count} ${count === 1 ? 'Credit' : 'Credits'}`

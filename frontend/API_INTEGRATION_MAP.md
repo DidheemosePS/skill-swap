@@ -52,10 +52,14 @@ Returns the current user's recommendations, highest score first. `peer` is the f
   "learns_from_you": ["skill-python"],
   "credit_cost": 0,
   "has_pending_request": false,
+  "pending_request_from": null,
+  "pending_request": null,
   "next_session_at": null,
   "peer": { "id": "user-bea", "name": "Bea Example", "avatar_url": null, "headline": "...", "rating": 4.9, "review_count": 31, "is_reliable": true, "teach_skills": [], "learn_skills": [], "availability": { "timezone": "UTC", "slots": [{ "day": "mon", "start_hour": 10 }] } }
 }]
 ```
+
+`pending_request_from` is `"me"` when the signed-in member sent the live pending request (a one-way request then holds 1 credit), `"them"` when the peer sent it, and `null` when there is none. `has_pending_request` stays for compatibility and equals `pending_request_from != null`. `pending_request` is `null` or `{ "id": "req-evan", "proposed_slots": ["2026-11-14T10:00:00Z"], "skill_name": "Python", "awaiting_me": true }`; `awaiting_me` is true when the peer proposed the current times. The dashboard uses it to call the existing accept (`POST /swap-requests/{id}/accept`), decline and cancel endpoints straight from the row.
 
 ### `GET /sessions?status=upcoming` (`fetchUpcomingSessions`, mock feature `sessions`)
 
@@ -80,9 +84,27 @@ Returns confirmed sessions that haven't ended, soonest first.
 }]
 ```
 
+### `GET /swap-requests?status=pending` (`fetchRequestedSessions`, mock feature `requested-sessions`)
+
+Open requests in either direction, for the Sessions agenda, which shows each one faded at its first proposed time. If it fails, the page still shows booked sessions and says requests couldn't load.
+
+```json
+[{
+  "request_id": "request-evan",
+  "partner": { "id": "user-evan", "name": "Evan Fixture", "avatar_url": null },
+  "skill_name": "Python",
+  "swap_type": "one_way",
+  "is_teaching": true,
+  "proposed_slots": ["2026-11-17T09:00:00Z", "2026-11-17T10:00:00Z"],
+  "awaiting_me": true,
+  "return_skill_name": null,
+  "expires_at": "2026-11-14T09:00:00Z"
+}]
+```
+
 ### `GET /sessions` (`fetchMySessions`, mock feature `my-sessions`)
 
-All of the current user's sessions except `pending` ones. Each has the fields shown above, plus the following. Sessions and the page's tabs are ordered on the client.
+All of the current user's sessions except `pending` ones. Each has the fields shown above, plus the following. The client sorts them into the page's sections (Settle, Coming up, Waiting on others, History) and works out each history row's credit change (`+1` taught, `−1` learned, `0` for a free swap, a cancellation or a refund after the teacher was absent).
 
 ```json
 {
@@ -248,9 +270,10 @@ Searches the public directory and excludes the current user. Every query paramet
 | Parameter | Values | Meaning |
 |---|---|---|
 | `skill` | text | Teach skill name contains this, case-insensitive |
-| `type` | `2way`, `1way` | `2way`: the member and current user can teach each other. `1way`: any other member, booked with a credit |
-| `rating` | `4`, `4.5` | Minimum average rating |
+| `type` | `2way`, `1way` | Filters on `deal`: `2way` = `free`, `1way` = `credit` |
+| `rating` | `4`, `4.5` | Minimum average rating; members with fewer than 3 reviews don't pass |
 | `day` | `mon` to `sun` | Has at least one slot on this day |
+| `reliable` | `1` | Reliable Swappers only |
 | `sort` | `rated`, `active` | Default is recommended: match score, then rating. `rated`: rating, then review count. `active`: most recent `last_active_at` |
 
 Response `200`:
@@ -258,8 +281,11 @@ Response `200`:
 ```json
 [{
   "swap_type": "two_way",
+  "deal": "free",
   "has_pending_request": false,
   "next_session_at": "2026-11-09T14:00:00Z",
+  "teaches_you": ["skill-spanish"],
+  "learns_from_you": ["skill-python"],
   "user": {
     "id": "user-bea",
     "name": "Bea Example",
@@ -275,11 +301,13 @@ Response `200`:
 }]
 ```
 
+`teaches_you` lists the member's teach skills that are on the current user's learn list, and `learns_from_you` their learn skills the current user teaches. `deal` is the Explore section and never depends on the search: `free` for a two-way swap, otherwise `credit`. On a credit row, a non-empty `learns_from_you` shows as "Wants your Python".
+
 ## Public Profile
 
 ### `GET /users/{id}` (`fetchMemberProfile`, mock feature `profile`)
 
-`swap_type`, `teaches_you`, `learns_from_you` and `credit_cost` are relative to the current user. For a one-way offer, `teaches_you` lists every skill the member teaches, starting with those the current user wants to learn. `reviews` holds the most recent reviews, newest first. The mock treats a missing member as `null`; the real service should map `404` to `null`.
+`swap_type`, `teaches_you`, `learns_from_you` and `credit_cost` are relative to the current user. For a one-way offer, `teaches_you` lists every skill the member teaches, starting with those the current user wants to learn. `reviews` holds the most recent reviews, newest first. `next_session` is the soonest confirmed session with this member that hasn't ended (`{ "id", "starts_at", "duration_minutes", "meeting_url" }`, or `null`), so the profile can count down to it and offer Join. `viewer_availability` is the current user's own weekly hours (same shape as `peer.availability`, `null` on their own profile), so the page can show when both are free. The mock treats a missing member as `null`; the real service should map `404` to `null`.
 
 Response `200` (or `404` if the member doesn't exist):
 
@@ -288,10 +316,12 @@ Response `200` (or `404` if the member doesn't exist):
   "is_self": false,
   "has_pending_request": false,
   "next_session_at": null,
+  "next_session": null,
   "swap_type": "one_way",
   "teaches_you": ["skill-guitar", "skill-sql"],
   "learns_from_you": [],
   "credit_cost": 1,
+  "viewer_availability": { "timezone": "UTC", "slots": [{ "day": "thu", "start_hour": 18 }] },
   "peer": {
     "id": "user-ivo",
     "name": "Ivo Dummy",
@@ -335,13 +365,18 @@ Most recent activity first. Response `200`:
   "last_message_preview": "Saturday works too if that is easier.",
   "last_message_at": "2026-11-07T10:00:00Z",
   "has_session_history": false,
+  "latest_request": { "status": "pending", "swap_type": "two_way", "awaiting_me": false, "i_am_learner": true, "confirmed_starts_at": null, "closed_by_me": false },
+  "owed_session": null,
+  "settling_session": null,
   "peer": { "id": "user-cole", "name": "Cole Demo", "avatar_url": null }
 }]
 ```
 
+`latest_request` summarises the newest request in the thread (or `null`): `awaiting_me` is true when the peer proposed the current times, `i_am_learner` when the current user learns in it. `closed_by_me` is true when the current user declined or withdrew it. `owed_session` is a past session with this member whose outcome the current user still owes (`{ "id", "starts_at", "mode": "resolve" | "confirm", "skill_id", "i_taught" }`, or `null`; `skill_id` and `i_taught` let the note name the session); it puts the conversation under Needs your reply. `settling_session` is `"under_review"` while a session with this member is disputed (a no-show report or dispute being checked), `"awaiting_confirm"` while a session the current user taught waits on the learner's confirmation, else `null`; the row is tagged `Under review` or `<Name> to confirm` and, with nothing live, sits under Waiting on them. The list groups rows by it (Needs your reply, Booked, Waiting on them, Other) and prints its deal stub. Previews say "session request" for one-way and "swap request" for two-way.
+
 ### `GET /conversations/{id}/messages` (`fetchMessages`, mock feature `messages`)
 
-Oldest first. `kind` is `text` (with `body`), `code` (with `language` and `code`) or `swap_request` (with `swap_request`).
+Oldest first. `kind` is `text` (with `body`) or `swap_request` (with `swap_request`).
 
 ```json
 [{
@@ -379,7 +414,7 @@ Oldest first. `kind` is `text` (with `body`), `code` (with `language` and `code`
 
 ### `POST /conversations/{id}/messages` (`sendMessage`, mock feature `send-message`)
 
-Request: `{ "kind": "text", "body": "Hello" }` or `{ "kind": "code", "language": "python", "code": "print(1)" }`. Text and code are limited to 4000 characters. Response `201`: the created message.
+Request: `{ "kind": "text", "body": "Hello" }`. Text is limited to 4000 characters. Response `201`: the created message.
 
 **Chat access:** return `403` unless the two members have a session with status `confirmed`, `awaiting_settlement`, `pending_learner_review`, `disputed` or `completed`. A cancelled session doesn't count, so cancelling a pair's only session locks their chat, and past messages stay readable. The frontend hides the message box using the same rule (`getChatAccess`), but only the server can enforce it.
 
@@ -491,3 +526,11 @@ Respond `422` with the failing field if a rule is broken. After saving, the back
 Response `200`: the remaining `connected_accounts`. Respond `409` if it's the member's only account, because Google and GitHub are the only ways to sign in.
 
 Signing out is under [Auth](#auth).
+
+## Computed field: `is_reliable`
+
+Returned on every user/peer object. The server computes it; the client never derives it. It is true only when all three hold across the member's completed sessions:
+
+1. At least 5 completed sessions with an attendance rate of 95% or more (no unexcused teacher or learner no-shows, per attendance logs).
+2. Average review rating of 4.8 or higher.
+3. Zero attendance (telemetry) disputes ruled against the member in the last 30 days.

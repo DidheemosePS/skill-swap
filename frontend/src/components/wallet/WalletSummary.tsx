@@ -1,69 +1,47 @@
-import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import type { AsyncStatus } from '../../hooks/useAsyncData'
 import type { Wallet } from '../../types'
 import AlertBanner from '../common/AlertBanner'
-import Skeleton from '../common/Skeleton'
-import { formatCredits } from './ledgerFilters'
+import { BalanceCardSkeleton } from '../common/skeletons'
+import HoursBar from './HoursBar'
 
 interface WalletSummaryProps {
   wallet: Wallet | null
   status: AsyncStatus
   onRetry: () => void
+  // Replays the welcome tour, which is where the rules live now.
+  onReplayTour: () => void
 }
 
-function SummaryCard({ label, children }: { label: string; children: ReactNode }) {
+// How credits work, in one line, with the tour a tap away. Static, so it shows while the balance loads too;
+// without onReplayTour (the reload screen) the link is drawn but inert.
+export function CreditRules({ onReplayTour }: { onReplayTour?: () => void }) {
+  const link = 'mt-2 inline-flex min-h-11 items-center rounded text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent lg:min-h-9'
   return (
-    <div className="flex flex-col rounded-xl border border-line bg-surface p-5">
-      <h3 className="text-sm text-muted">{label}</h3>
-      {children}
-    </div>
+    <section aria-labelledby="rules-heading" className="rounded-2xl bg-card p-5">
+      <h2 id="rules-heading" className="text-base font-semibold text-ink">How credits work</h2>
+      <p className="mt-1 text-sm text-muted">Teach an hour, earn 1. Spend 1 to learn from anyone. Free swaps move nothing.</p>
+      {onReplayTour ? <button type="button" onClick={onReplayTour} className={link}>Replay the tour</button> : <span aria-hidden="true" className={link}>Replay the tour</span>}
+    </section>
   )
 }
 
-export default function WalletSummary({ wallet, status, onRetry }: WalletSummaryProps) {
-  if (wallet === null && status === 'loading') {
-    return (
-      <div role="status" aria-label="Loading wallet" className="grid gap-4 sm:grid-cols-3">
-        <Skeleton className="h-36 rounded-xl" />
-        <Skeleton className="h-36 rounded-xl" />
-        <Skeleton className="h-36 rounded-xl" />
-      </div>
-    )
-  }
-  if (status === 'error' || wallet === null) return <AlertBanner message="We couldn't load your balance." onRetry={onRetry} />
+// The balance as the page's one dark card, then the rules in one line with the tour a tap away.
+export default function WalletSummary({ wallet, status, onRetry, onReplayTour }: WalletSummaryProps) {
+  if (status === 'error' && wallet === null) return <div className="grid gap-5"><AlertBanner message="We couldn't load your balance." onRetry={onRetry} /><CreditRules onReplayTour={onReplayTour} /></div>
 
   return (
-    <section aria-labelledby="summary-heading" className="grid gap-4 sm:grid-cols-3">
-      <h2 id="summary-heading" className="sr-only">Summary</h2>
-      <SummaryCard label="Available balance">
-        <p className="mt-2 text-3xl font-semibold tabular-nums"><span aria-hidden="true">⚡ </span>{formatCredits(wallet.credits)}</p>
-        <p className="mt-auto pt-3 text-sm text-muted">Each credit books a 1-hour session with any mentor.</p>
-      </SummaryCard>
-      <SummaryCard label="Escrow hold">
-        <p className="mt-2 text-3xl font-semibold tabular-nums"><span aria-hidden="true">🔒 </span>{formatCredits(wallet.escrowCredits)}</p>
-        <p className="mt-auto pt-3 text-sm text-muted">
-          Held for booked sessions until they're confirmed.{' '}
-          {wallet.escrowCredits > 0 && (
-            <Link to="?filter=escrow" className="rounded font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
-              View holds
-            </Link>
-          )}
-        </p>
-      </SummaryCard>
-      <SummaryCard label="Lifetime stats">
-        <dl className="mt-2 grid grid-cols-2 gap-3">
-          {/* The term comes first in the markup, as a description list needs; the number shows on top. */}
-          <div className="flex flex-col-reverse">
-            <dt className="text-sm text-muted">Hours taught</dt>
-            <dd className="text-3xl font-semibold tabular-nums">{wallet.hoursTaught}h</dd>
-          </div>
-          <div className="flex flex-col-reverse">
-            <dt className="text-sm text-muted">Hours learned</dt>
-            <dd className="text-3xl font-semibold tabular-nums">{wallet.hoursLearned}h</dd>
-          </div>
-        </dl>
-      </SummaryCard>
-    </section>
+    <div className="grid gap-5">
+      {wallet === null ? (
+        <div role="status" aria-label="Loading balance"><BalanceCardSkeleton /></div>
+      ) : (
+        <section aria-labelledby="balance-heading" className="rounded-3xl bg-next p-6 text-white sm:p-7">
+          <h2 id="balance-heading" className="font-sans text-sm font-normal tracking-normal text-white/70">Credits to spend</h2>
+          <p className="figures mt-1 font-display text-6xl leading-none font-semibold tracking-tight">{wallet.credits}</p>
+          <p className="mt-4 text-white/75"><b className="figures font-semibold text-white">{wallet.escrowCredits}</b> held for booked sessions</p>
+          <HoursBar taught={wallet.hoursTaught} learned={wallet.hoursLearned} onDark className="mt-6" />
+        </section>
+      )}
+      <CreditRules onReplayTour={onReplayTour} />
+    </div>
   )
 }

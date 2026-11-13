@@ -16,7 +16,7 @@ export default function StepIndicator({ steps, current }: StepIndicatorProps) {
             <li key={label} aria-current={position === current ? 'step' : undefined}>
               <span
                 aria-hidden="true"
-                className={`block h-1 rounded-full transition-colors ${position <= current ? 'bg-accent' : 'bg-line'}`}
+                className={`block h-1 rounded-full transition-colors ${position <= current ? 'bg-next' : 'bg-line'}`}
               />
               <span
                 className={`mt-2 block text-xs sm:text-sm ${position === current ? 'font-semibold text-ink' : 'text-muted'}`}

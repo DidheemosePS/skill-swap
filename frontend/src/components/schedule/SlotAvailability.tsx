@@ -1,6 +1,7 @@
 import type { AsyncStatus } from '../../hooks/useAsyncData'
-import type { PeerSlot } from '../../types'
+import type { PeerSlot, TimeSlot } from '../../types'
 import AlertBanner from '../common/AlertBanner'
+import EmptyState from '../common/EmptyState'
 import Skeleton from '../common/Skeleton'
 import TimeSlotPicker from './TimeSlotPicker'
 
@@ -12,9 +13,10 @@ interface SlotAvailabilityProps {
   selected: string[]
   max: number
   onToggle: (slot: string) => void
+  sharedSlots?: TimeSlot[]
 }
 
-export default function SlotAvailability({ firstName, slots, status, onRetry, selected, max, onToggle }: SlotAvailabilityProps) {
+export default function SlotAvailability({ firstName, slots, status, onRetry, selected, max, onToggle, sharedSlots = [] }: SlotAvailabilityProps) {
   // Times aren't offered until the check finishes, so a taken time can never be picked.
   if (status === 'loading') {
     return (
@@ -32,9 +34,7 @@ export default function SlotAvailability({ firstName, slots, status, onRetry, se
   }
   if (slots.length === 0) {
     return (
-      <p className="mt-5 rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
-        {firstName} has no times set for the next two weeks.
-      </p>
+      <div className="mt-5"><EmptyState icon="clock" title={`${firstName} has no times set for the next two weeks`} /></div>
     )
   }
   return (
@@ -44,8 +44,9 @@ export default function SlotAvailability({ firstName, slots, status, onRetry, se
           All of {firstName}'s times in the next two weeks are taken. Times on hold may open up again, so please check back later.
         </p>
       )}
-      <div className="mt-5 max-h-[45vh] overflow-y-auto pr-1">
-        <TimeSlotPicker slots={slots} selected={selected} max={max} onToggle={onToggle} />
+      {/* No inner scroll: the dialog scrolls as one, so swipes never get caught in a nested list. */}
+      <div className="mt-2">
+        <TimeSlotPicker slots={slots} selected={selected} max={max} onToggle={onToggle} sharedSlots={sharedSlots} />
       </div>
     </>
   )

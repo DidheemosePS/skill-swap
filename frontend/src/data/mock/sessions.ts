@@ -1,5 +1,5 @@
 import type { AttendanceRecord, Session } from '../../types'
-import { fromNow } from './time'
+import { fromNow, nextWeekly } from './time'
 import { CURRENT_USER_ID as ALEX } from './users'
 
 const meeting = (id: string) => `https://example.com/meet/${id}`
@@ -36,7 +36,7 @@ export const mockSessions: Session[] = [
     learnerId: ALEX,
     skillId: 'skill-ui-design',
     returnSkillId: null,
-    startsAt: fromNow({ days: 2 }),
+    startsAt: nextWeekly('fri', 15),
     durationMinutes: 60,
     status: 'confirmed',
     meetingUrl: meeting('faye-escrow'),
@@ -49,7 +49,7 @@ export const mockSessions: Session[] = [
     learnerId: 'user-ivo',
     skillId: 'skill-react',
     returnSkillId: null,
-    startsAt: fromNow({ days: 4 }),
+    startsAt: nextWeekly('thu', 18),
     durationMinutes: 60,
     status: 'confirmed',
     meetingUrl: meeting('ivo-upcoming'),
@@ -62,7 +62,7 @@ export const mockSessions: Session[] = [
     learnerId: ALEX,
     skillId: 'skill-ui-design',
     returnSkillId: 'skill-react',
-    startsAt: fromNow({ days: 3 }),
+    startsAt: nextWeekly('sat', 18),
     durationMinutes: 60,
     status: 'pending',
     meetingUrl: null,
@@ -76,7 +76,7 @@ export const mockSessions: Session[] = [
     learnerId: 'user-evan',
     skillId: 'skill-python',
     returnSkillId: null,
-    startsAt: fromNow({ days: 6 }),
+    startsAt: nextWeekly('tue', 9),
     durationMinutes: 60,
     status: 'pending',
     meetingUrl: null,
@@ -133,7 +133,7 @@ export const mockSessions: Session[] = [
     learnerId: ALEX,
     skillId: 'skill-speaking',
     returnSkillId: null,
-    startsAt: fromNow({ days: -8 }),
+    startsAt: fromNow({ days: -1 }),
     durationMinutes: 60,
     status: 'cancelled',
     meetingUrl: null,

@@ -1,4 +1,5 @@
-import type { BusyTime, PeerSlot, SlotHold, Weekday, WeeklyAvailability } from '../types'
+import type { BusyTime, PeerSlot, SlotHold, TimeSlot, Weekday, WeeklyAvailability } from '../types'
+import { getViewerTimezone } from './availability'
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -54,7 +55,8 @@ export const formatSlotDay = (iso: string) =>
   new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso))
 
 export const formatSlotTime = (iso: string) =>
-  new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+  // 24-hour, zero-padded, so every time lines up in the narrow figure column.
+  new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
 
 export const formatSlotDateTime = (iso: string) => `${formatSlotDay(iso)}, ${formatSlotTime(iso)}`
 
@@ -106,3 +108,18 @@ export const getCustomSlotRange = (now: number) => ({
   min: toDateTimeInputValue(now + HOUR_MS),
   max: toDateTimeInputValue(now + CUSTOM_SLOT_MAX_DAYS * DAY_MS),
 })
+
+// A member's weekly hours restated in the viewer's timezone, so a profile grid, its overlay and the
+// booking picker all speak one clock. Built from the real upcoming starts, so offsets and day changes are exact.
+export function toViewerWeek(availability: WeeklyAvailability, now: number): WeeklyAvailability {
+  const timezone = getViewerTimezone()
+  const format = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, weekday: 'short', hour: '2-digit', hourCycle: 'h23' })
+  const seen = new Map<string, TimeSlot>()
+  for (const iso of getUpcomingSlots(availability, now, 8)) {
+    const parts = format.formatToParts(new Date(iso))
+    const day = parts.find((part) => part.type === 'weekday')?.value.toLowerCase().slice(0, 3) as Weekday
+    const startHour = Number(parts.find((part) => part.type === 'hour')?.value)
+    seen.set(`${day}-${startHour}`, { day, startHour })
+  }
+  return { timezone, slots: [...seen.values()] }
+}
