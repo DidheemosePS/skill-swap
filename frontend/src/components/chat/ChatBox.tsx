@@ -34,7 +34,7 @@ const SESSION_MS = 3_600_000
 // Key this by conversation ID, so scroll position, unread marker and live messages reset between threads.
 export default function ChatBox({ conversation, skillNames, highlightRequestId, nextNeedsReply, onChanged }: ChatBoxProps) {
   const { id: myId } = useCurrentUser()
-  const { peer, owedSession } = conversation
+  const { peer, settling } = conversation
   const firstName = peer.name.split(' ')[0]
   const { messages, status, retry, applyMessage } = useChatThread(conversation.id)
   const outbox = useOutbox(conversation.id, peer.id, (message) => applyMessage(message))
@@ -44,13 +44,13 @@ export default function ChatBox({ conversation, skillNames, highlightRequestId, 
   const followLatest = useRef(true)
   const [isAwayFromLatest, setIsAwayFromLatest] = useState(false)
   const [unreadAtOpen] = useState(conversation.unreadCount)
-  const dialogs = useThreadDialogs(peer.id, owedSession)
+  const dialogs = useThreadDialogs(peer.id, settling)
   const [actionStatus, setActionStatus] = useState<string | null>(null)
   const hasLoaded = status === 'ready' || messages.length > 0
   // Worked out from the thread, so the box opens the moment a request turns Confirmed.
   const chatAccess = getChatAccess(messages, myId, conversation.hasSessionHistory)
   // The newest request is pinned above the thread while it's live: pending, or booked and not yet over.
-  const latest = [...messages].reverse().find((message) => message.kind === 'swap_request')
+  const latest = messages.findLast((message) => message.kind === 'swap_request')
   const pinned =
     latest?.kind === 'swap_request' &&
     (latest.swapRequest.status === 'pending' || (latest.swapRequest.status === 'confirmed' && latest.swapRequest.confirmedStartsAt !== null && Date.parse(latest.swapRequest.confirmedStartsAt) + SESSION_MS > now))
@@ -102,12 +102,12 @@ export default function ChatBox({ conversation, skillNames, highlightRequestId, 
       <ThreadHeader peer={peer} />
 
       {actionStatus && <ActionStatus message={actionStatus} next={nextNeedsReply} onDismiss={() => setActionStatus(null)} />}
-      {(owedSession || pinned?.kind === 'swap_request') && (
+      {(settling || pinned?.kind === 'swap_request') && (
         <div className={`px-3 pt-3 sm:px-6 sm:pt-4 ${pinned?.kind === 'swap_request' && pinned.swapRequest.id === highlightRequestId ? 'ring-2 ring-accent ring-inset' : ''}`}>
           <PinnedRequestNote
             request={pinned?.kind === 'swap_request' ? pinned.swapRequest : null}
             sentAt={pinned?.sentAt ?? null}
-            owedSession={owedSession}
+            settling={settling}
             peerName={peer.name}
             peerAvatarUrl={peer.avatarUrl}
             skillNames={skillNames}

@@ -1,28 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  /* People & swap in black and white: a white page, light grey cards without borders, near-black actions.
-     Bricolage Grotesque carries headings and figures, Instrument Sans the reading text; people carry the colour. */
-  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
-  /* canvas: hovers and inset panels; card: the grey every card sits in; surface: inputs, menus, dialogs. */
-  --color-canvas: #ececee;
-  --color-shell: #ffffff;
+  /* Community noticeboard: an off-white board, an ultramarine bar and actions, and jobs as flat index cards
+     in colour (sun yellow for what is next, coral for what needs you). Familjen Grotesk sets headings and big
+     figures; Inter Tight carries the text. */
+  --font-sans: "Inter Tight Variable", system-ui, sans-serif;
+  --font-display: "Familjen Grotesk", system-ui, sans-serif;
+  --color-canvas: #ecece6;
+  --color-shell: #f6f6f2;
   --color-surface: #ffffff;
-  --color-card: #f4f4f5;
-  --color-ink: #16181d;
-  --color-muted: #4f5159;
-  --color-faint: #6c6e76;
-  --color-line: #e4e4e7;
-  /* Link blue: inline links, focus rings and selection. */
-  --color-accent: #1b61c9;
-  --color-accent-strong: #1b61c9;
-  --color-accent-soft: #e8f0fb;
-  /* Near-black: the one primary action, the current nav item and the dark "now" card. */
-  --color-next: #16181d;
-  --color-next-strong: #0b0c0f;
-  --color-next-soft: #e7e7ea;
-  /* Status tags only: deep coral for credits held, green for free swaps. */
+  --color-card: #ffffff;
+  --color-ink: #1b1d22;
+  --color-muted: #4e525c;
+  --color-faint: #666a74;
+  --color-line: #e3e3dc;
+  --color-line-strong: #cfcfc6;
+  /* Ultramarine: the bar, links, focus and the one primary action. */
+  --color-accent: #2b3a8c;
+  --color-accent-strong: #22306f;
+  --color-accent-soft: #e6e9f6;
+  --color-next: #2b3a8c;
+  --color-next-strong: #22306f;
+  --color-next-soft: #e6e9f6;
+  /* Index-card fills: sun for what is next, coral for what needs you. Ink text on both. */
+  --color-sun: #ffd84d;
+  --color-coral: #ff6a3d;
+  --color-coral-soft: #ffe4da;
   --color-held: #b13a12;
   --color-held-soft: #fbe9e2;
   --color-success: #1f7a4a;
@@ -30,12 +33,14 @@
   --color-star: #8a5a00;
   --color-danger: #a32a1f;
   --color-danger-soft: #fbeae7;
-  /* Inputs 8px, rows 10px, buttons 12px, cards 16px, feature cards 20px. */
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
+  --color-danger-bright: #ff8a73;
+  --color-success-bright: #5fd08f;
+  /* One flat radius family: 6px inputs and tabs, 10px cards. */
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 10px;
 }
 
 /* Headings speak in the display face, slightly tightened; body copy stays in the reading face. */
@@ -45,7 +50,7 @@
     letter-spacing: -0.015em;
   }
   h1 {
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -54,25 +59,54 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The width every app page centres in (max-w-page); lifted when the sidebar collapses to its rail. */
-@utility max-w-page {
-  max-width: var(--page-max, 80rem);
+/* Landing page only. The skill ticker drifts sideways (the track holds two copies, so -50%
+   lands exactly on the repeat), and a fresh demo match rises in. Both are applied through
+   motion-safe utilities, so reduced motion never sees them. */
+@keyframes tick {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
-/* From lg up the sidebar is fixed on the left (Sidebar.tsx), full or collapsed to an icon rail. Its width is a
-   variable so the page and pinned bars (the settings save bar) shift right by the same amount. */
-@media (width >= 64rem) {
-  :root:has([data-sidebar='full']) {
-    --sidebar-w: 15rem;
+@keyframes rise {
+  from {
+    opacity: 0.4;
+    transform: translateY(6px);
   }
-  :root:has([data-sidebar='rail']) {
-    --sidebar-w: 4rem;
-    /* Hiding the sidebar is a request for room, so pages drop their reading cap and use the full width. */
-    --page-max: none;
+  to {
+    opacity: 1;
+    transform: none;
   }
-  body {
-    padding-left: var(--sidebar-w, 0);
+}
+
+/* The board's one authored moment: a taken time tears off its card, tilting and dropping a little as it comes
+   away, and goes back on Put back. Reduced motion keeps the white fill and ring that mark it taken. */
+.tab-torn {
+  background: #fff;
+  box-shadow: 0 6px 14px -6px rgb(27 29 34 / 0.35), inset 0 0 0 2px var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab-torn {
+    animation: tear-off 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+}
+
+@keyframes tear-off {
+  0% {
+    transform: none;
+  }
+  35% {
+    transform: translateY(2px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(8px) rotate(-4deg);
+  }
+}
+
+/* The width every app page centres in (max-w-page). */
+@utility max-w-page {
+  max-width: 80rem;
 }
 
 html {

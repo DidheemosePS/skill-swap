@@ -3,18 +3,18 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import AlertBanner from './AlertBanner'
 import RouteSkeleton from './RouteSkeleton'
-import SignInPanel from './SignInPanel'
 
-// Decides what every route shows before its page: a loader, the sign-in panel, or a redirect that keeps
-// members and onboarding in step. Pages behind it can rely on a signed-in, correctly onboarded member.
+// Decides what every route shows before its page: a loader, a redirect to /login, or a redirect that
+// keeps members and onboarding in step. Pages behind it can rely on a signed-in, onboarded member.
 export default function AuthGate({ children }: { children: ReactNode }) {
   const { user, status, refresh } = useAuth()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const isOnboardingRoute = pathname === '/onboarding'
 
   // Only the first load blocks the app; later refetches keep the current member on screen.
   if (!user) {
-    if (status === 'signed_out') return <SignInPanel />
+    // The wanted URL rides along in router state, so /login can send the member back after sign-in.
+    if (status === 'signed_out') return <Navigate to="/login" replace state={{ from: `${pathname}${search}` }} />
     if (status === 'error') {
       return (
         <main className="mx-auto max-w-md px-4 py-16">

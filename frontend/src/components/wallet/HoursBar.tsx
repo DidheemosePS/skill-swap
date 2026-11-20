@@ -13,9 +13,11 @@ export default function HoursBar({ taught, learned, className = '', onDark = fal
   const strong = onDark ? 'text-white' : 'text-ink'
   return (
     <div className={className}>
+      {/* Taught is solid ink, learned a soft neutral: given vs received, without borrowing
+          blue, which means "link" everywhere else in this design. */}
       <div aria-hidden="true" className={`flex h-2 overflow-hidden rounded-full ${onDark ? 'bg-white/15' : 'bg-next-soft'}`}>
         <span className={onDark ? 'bg-white' : 'bg-next'} style={{ width: `${(taught / total) * 100}%` }} />
-        <span className="flex-1 bg-[#6f9be0]" />
+        <span className={`flex-1 ${onDark ? 'bg-white/40' : 'bg-line-strong'}`} />
       </div>
       <p className={`mt-2 flex justify-between text-sm ${onDark ? 'text-white/70' : 'text-muted'}`}>
         <span><b className={`figures font-medium ${strong}`}>{taught} h</b> taught</span>

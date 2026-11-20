@@ -84,6 +84,7 @@ export async function createSwapRequest(payload: CreateSwapRequestPayload): Prom
     status: 'pending',
     meetingUrl: null,
     attendance: [],
+    confirmedBy: [],
   })
 
   holdRequestTimes(swapRequest, Date.now())

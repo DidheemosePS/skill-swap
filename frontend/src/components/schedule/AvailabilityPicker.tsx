@@ -83,7 +83,7 @@ export default function AvailabilityPicker({ selected, onSlotChange }: Availabil
                   }}
                   onClick={(event) => handleClick(event, slot)}
                   onKeyDown={(event) => handleKeyDown(event, row, column)}
-                  className={`block h-8 w-full rounded outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 sm:h-7 ${isSelected ? 'bg-accent hover:bg-accent-strong' : 'bg-line/60 hover:bg-line'}`}
+                  className={`block h-11 w-full rounded outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 sm:h-7 ${isSelected ? 'bg-accent hover:bg-accent-strong' : 'bg-line/60 hover:bg-line'}`}
                 />
               </span>
             )

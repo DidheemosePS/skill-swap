@@ -6,7 +6,7 @@ import { ShieldIcon } from './icons'
 const CRITERIA = [
   '5+ sessions, 95% attended',
   'Rated 4.8 or higher',
-  'No lost no-show disputes in 30 days',
+  'No concerns upheld against them in 30 days',
 ]
 
 export default function ReliableBadge() {

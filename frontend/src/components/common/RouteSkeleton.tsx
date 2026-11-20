@@ -15,16 +15,16 @@ function Body({ pathname }: { pathname: string }) {
   if (pathname.startsWith('/user/')) return <main className={MAIN}><ProfileSkeleton /></main>
   if (pathname.startsWith('/messages')) {
     return (
-      <main className="grid h-[calc(100dvh-8.0625rem)] md:h-[calc(100dvh-4.0625rem)] lg:h-dvh lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]">
-        <div className="bg-surface lg:border-r lg:border-line">
-          <p aria-hidden="true" className="px-4 pt-5 pb-3 font-display text-2xl font-semibold text-ink">Messages</p>
+      <main className="grid h-[calc(100dvh-8.0625rem)] md:mx-auto md:h-[calc(100dvh-4rem)] md:w-full md:max-w-page md:px-6 md:py-6 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] lg:px-10">
+        <div className="bg-surface md:rounded-2xl md:border md:border-line lg:rounded-r-none">
+          <p aria-hidden="true" className="px-4 pt-5 pb-3 font-display text-3xl font-semibold text-ink sm:text-4xl">Messages</p>
           <div aria-hidden="true" className="space-y-3 px-4 pb-2">
             <div className="flex min-h-11 items-center rounded-xl border border-line px-3 text-sm text-muted">Search people, skills or messages</div>
             <ToggleLabels labels={['All', 'Unread', 'Your turn']} />
           </div>
           <ConversationRowsSkeleton />
         </div>
-        <div className="hidden lg:block"><MessagesGuide /></div>
+        <div className="hidden overflow-hidden lg:block lg:rounded-r-2xl lg:border lg:border-l-0 lg:border-line"><MessagesGuide /></div>
       </main>
     )
   }
@@ -45,7 +45,7 @@ export default function RouteSkeleton({ pathname }: { pathname: string }) {
   }
   return (
     <div role="status" aria-label="Loading">
-      <Navbar placeholder credits={null} heldCredits={null} counts={{ messages: 0, sessions: 0 }} name="" avatarUrl={null} profileId="" />
+      <Navbar placeholder credits={null} heldCredits={null} counts={{ messages: 0 }} name="" avatarUrl={null} profileId="" />
       <Body pathname={pathname} />
     </div>
   )

@@ -8,7 +8,7 @@ const STEPS = [
   { title: 'Swap an hour for an hour', body: 'When you each teach something the other wants, it’s a free swap. No credits move.' },
   { title: 'Teach to earn', body: 'Teach someone for an hour and you earn 1 credit.' },
   { title: 'Spend to learn from anyone', body: '1 credit books an hour with anyone. It’s held until the session happens, and comes back if it doesn’t.' },
-  { title: 'Say how it went', body: 'After a session, answer “Did it happen?” or confirm it. That’s when the credit moves.' },
+  { title: 'It settles itself', body: 'The meeting records who joined, and the credit moves 24 hours after the session ends. If something went wrong, raise a concern before then.' },
 ]
 
 // A short welcome for new members, centred over the dashboard. Esc or Skip ends it; it never comes back

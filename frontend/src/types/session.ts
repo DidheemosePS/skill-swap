@@ -4,33 +4,36 @@ import type { User } from './user'
 export type SessionStatus =
   | 'pending'
   | 'confirmed'
-  // The end time has passed and the post-session drawer is waiting on an outcome.
+  // The scheduled end has passed. The attendance records already say how it went; the credit moves 24 hours
+  // after the end, or at once when both members confirm.
   | 'awaiting_settlement'
-  // The teacher marked a one-way session completed; the learner has 48 hours to confirm or dispute.
-  | 'pending_learner_review'
   | 'completed'
-  // A report, a dispute or a session nobody marked within 72 hours. A no-show report is checked against
-  // the meeting records for 24 hours first; everything else goes straight to an admin.
+  // A member raised a concern during the 24-hour window; the credit stays held until an admin decides.
   | 'disputed'
-  // The 24-hour check or an admin found one member was absent.
+  // One member never joined, by the attendance records or an admin's ruling.
   | 'no_show_confirmed'
+  // Neither member joined: any credit goes back to the learner and both are marked absent.
+  | 'mutual_no_show'
   | 'cancelled'
 
-// Meeting telemetry, one record per member. The backend fills it from the meeting provider's webhooks.
+// What the attendance records say happened, decided automatically at the scheduled end.
+export type SessionOutcome = 'completed' | 'no_show_teacher' | 'no_show_learner' | 'mutual_no_show'
+
+// Meeting telemetry, one record per stretch in the call. The backend fills it from the video provider's
+// webhooks; the browser never reports attendance.
 export interface AttendanceRecord {
   userId: string
   joinedAt: string
   // Null while the member is still in the meeting.
   leftAt: string | null
-  // Total time in the meeting, shown to members and to an admin reviewing a dispute.
+  // Total time in the meeting, shown to members and to an admin reviewing a concern.
   durationMinutes: number
 }
 
+// A concern a member raised during the settle window. One kind only: the reason says what went wrong.
 export interface SessionDispute {
-  // Null when the 72-hour job opened it, not a member.
-  raisedBy: string | null
-  cause: 'no_show' | 'completion' | 'no_outcome'
-  reason: string | null
+  raisedBy: string
+  reason: string
   raisedAt: string
 }
 
@@ -48,12 +51,13 @@ export interface Session {
   // Null until the request is confirmed.
   meetingUrl: string | null
   attendance: AttendanceRecord[]
-  // Set with no_show_confirmed by the 24-hour check or an admin; reportedBy is null when nobody reported it.
-  noShow?: { absentId: string; reportedBy: string | null }
-  // When the teacher marked a one-way session completed, which starts the learner's 48-hour window.
-  teacherMarkedAt?: string
+  // Members who pressed Confirm now while it was settling; once both have, it settles at once.
+  confirmedBy: string[]
+  // Set with no_show_confirmed: who wasn't there.
+  noShow?: { absentId: string }
   dispute?: SessionDispute
-  cancellation?: { cancelledBy: string; reason: string; cancelledAt: string }
+  // late: called off after the 2-hour cutoff, which moves the credit and counts as an absence.
+  cancellation?: { cancelledBy: string; reason: string; cancelledAt: string; late: boolean }
 }
 
 export interface Review {

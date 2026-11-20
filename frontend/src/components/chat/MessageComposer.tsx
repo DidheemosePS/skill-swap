@@ -24,8 +24,9 @@ export default function MessageComposer({ onSend }: MessageComposerProps) {
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    // isComposing guards input methods, where Enter confirms a character rather than sending. Shift+Enter is a new line.
-    if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.shiftKey) return
+    // isComposing guards input methods, where Enter confirms a character rather than sending; keyCode 229
+    // covers Safari, which can clear isComposing before this runs. Shift+Enter is a new line.
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.keyCode === 229 || event.shiftKey) return
     event.preventDefault()
     send()
   }

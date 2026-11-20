@@ -1,13 +1,14 @@
 import { CURRENT_USER_ID, mockCurrentUser, mockReviews, mockSessions, mockTransactions, mockWallet } from '../data/mockData'
-import type { ReviewDraft, Session, SessionDispute, SessionStatus } from '../types'
-import { getAutoResolveEndMs, getReviewWindowEndMs, getSessionEndMs, getVerificationEndMs, releasesCreditNow } from '../utils/sessions'
+import type { ReviewDraft, Session, SessionStatus } from '../types'
+import { getExpectedOutcome, getSessionEndMs, getSettlesAtMs } from '../utils/sessions'
 import { mockRequest } from './mockClient'
 import { expireLapsedRequests, refundIfPaid } from './swapRequestActions'
 
 // The session's state changed since the page loaded. Maps to a 409 from the real API.
 export class SessionClosedError extends Error {}
 
-function payTeacher(session: Session, partnerId: string | null) {
+// Releases a one-way credit to the teacher. Exported for a learner's late cancel, which pays the teacher too.
+export function payTeacher(session: Session, partnerId: string | null) {
   if (session.swapType !== 'one_way') return
   if (session.teacherId === CURRENT_USER_ID) {
     mockWallet.credits += 1
@@ -31,34 +32,32 @@ function payTeacher(session: Session, partnerId: string | null) {
 
 export const getPartnerId = ({ teacherId, learnerId }: Session) => (teacherId === CURRENT_USER_ID ? learnerId : teacherId)
 
-function recordCompleted(session: Session) {
-  session.status = 'completed'
-  payTeacher(session, getPartnerId(session))
-  if (session.teacherId === CURRENT_USER_ID || session.returnSkillId) mockWallet.hoursTaught += 1
-  if (session.learnerId === CURRENT_USER_ID || session.returnSkillId) mockWallet.hoursLearned += 1
-  mockCurrentUser.completedSessions += 1
-}
+const refund = (session: Session) => refundIfPaid({ swapType: session.swapType, learnerId: session.learnerId, sessionId: session.id })
 
-// Anything other than a confirmation or a lapsed review window goes to review. The credit stays in
-// escrow, and the meeting records are kept as evidence.
-function openDispute(session: Session, dispute: Omit<SessionDispute, 'raisedAt'>) {
-  session.status = 'disputed'
-  session.dispute = { ...dispute, raisedAt: new Date().toISOString() }
-}
-
-// Ends a no-show report's 24-hour check. A reported member with no meeting record never joined, so the
-// report stands. One who did join stays disputed for an admin, since a short visit can't be judged here.
-function verifyNoShow(session: Session, reportedBy: string) {
-  const absentId = reportedBy === session.teacherId ? session.learnerId : session.teacherId
-  if (session.attendance.some((record) => record.userId === absentId)) return
+// Applies the attendance outcome: both there completes it and pays the teacher; an absent teacher refunds the
+// learner; an absent learner still pays the teacher; nobody there refunds and marks both absent.
+function settle(session: Session) {
+  const outcome = getExpectedOutcome(session)
+  if (outcome === 'completed') {
+    session.status = 'completed'
+    payTeacher(session, getPartnerId(session))
+    if (session.teacherId === CURRENT_USER_ID || session.returnSkillId) mockWallet.hoursTaught += 1
+    if (session.learnerId === CURRENT_USER_ID || session.returnSkillId) mockWallet.hoursLearned += 1
+    mockCurrentUser.completedSessions += 1
+    return
+  }
+  if (outcome === 'mutual_no_show') {
+    session.status = 'mutual_no_show'
+    refund(session)
+    return
+  }
   session.status = 'no_show_confirmed'
-  session.noShow = { absentId, reportedBy }
-  // An absent teacher earns nothing, so the learner gets the credit back. An absent learner still pays.
-  if (absentId === session.teacherId) refundIfPaid({ swapType: session.swapType, learnerId: session.learnerId, sessionId: session.id })
+  session.noShow = { absentId: outcome === 'no_show_teacher' ? session.teacherId : session.learnerId }
+  if (outcome === 'no_show_teacher') refund(session)
   else payTeacher(session, getPartnerId(session))
 }
 
-// Stands in for the meeting provider's leave webhook: anyone still in the room left when the session ended.
+// Stands in for the provider's leave webhook: anyone still in the room left when the session ended.
 function closeAttendance(session: Session) {
   const endMs = getSessionEndMs(session)
   for (const record of session.attendance) {
@@ -68,7 +67,8 @@ function closeAttendance(session: Session) {
   }
 }
 
-// Stands in for server jobs: sessions that have ended, and review, 72-hour and no-show windows that have run out.
+// Stands in for the server's jobs: sessions that have ended start settling, and settle windows that have
+// run out without a concern apply the attendance outcome.
 export function runSessionChecks(now = Date.now()) {
   expireLapsedRequests(now)
   for (const session of mockSessions) {
@@ -76,18 +76,7 @@ export function runSessionChecks(now = Date.now()) {
       closeAttendance(session)
       session.status = 'awaiting_settlement'
     }
-    // The learner stayed silent for 48 hours, so the teacher gets paid even if they never log back in.
-    if (session.status === 'pending_learner_review' && session.teacherMarkedAt && getReviewWindowEndMs(session.teacherMarkedAt) <= now) {
-      recordCompleted(session)
-    }
-    // Nobody marked an outcome, so an admin decides instead of the credit staying locked forever.
-    if (session.status === 'awaiting_settlement' && getAutoResolveEndMs(session) <= now) {
-      openDispute(session, { raisedBy: null, cause: 'no_outcome', reason: null })
-    }
-    const { dispute } = session
-    if (session.status === 'disputed' && dispute?.cause === 'no_show' && dispute.raisedBy && getVerificationEndMs(dispute.raisedAt) <= now) {
-      verifyNoShow(session, dispute.raisedBy)
-    }
+    if (session.status === 'awaiting_settlement' && getSettlesAtMs(session) <= now) settle(session)
   }
 }
 
@@ -98,32 +87,22 @@ function getSession(sessionId: string, allowed: SessionStatus[]): Session {
   return session
 }
 
-// The caller decides the result: a learner's word releases the credit at once, while a teacher's
-// marking only opens the learner's 48-hour window. A teacher can't answer their own marking.
-export async function completeSession(sessionId: string): Promise<void> {
-  await mockRequest('session-action', null)
-  const session = getSession(sessionId, ['awaiting_settlement', 'pending_learner_review'])
-  if (releasesCreditNow(session, CURRENT_USER_ID)) {
-    recordCompleted(session)
-    return
-  }
-  if (session.status === 'pending_learner_review') throw new SessionClosedError()
-  session.status = 'pending_learner_review'
-  session.teacherMarkedAt = new Date().toISOString()
-}
-
-export async function reportNoShow(sessionId: string): Promise<void> {
+// Confirm now: this member agrees with the outcome the attendance shows. Once both have, it settles at once
+// instead of waiting out the 24 hours. Returns the session's status afterwards, so the caller can say which.
+export async function completeSession(sessionId: string): Promise<SessionStatus> {
   await mockRequest('session-action', null)
   const session = getSession(sessionId, ['awaiting_settlement'])
-  openDispute(session, { raisedBy: CURRENT_USER_ID, cause: 'no_show', reason: null })
+  if (!session.confirmedBy.includes(CURRENT_USER_ID)) session.confirmedBy.push(CURRENT_USER_ID)
+  if ([session.teacherId, session.learnerId].every((id) => session.confirmedBy.includes(id))) settle(session)
+  return session.status
 }
 
-// The learner disputes the teacher's marking. Only the learner can, so it maps to a 403 otherwise.
-export async function disputeCompletion(sessionId: string, reason: string): Promise<void> {
+// Raise a concern: the credit stays held and an admin decides from the attendance records.
+export async function raiseConcern(sessionId: string, reason: string): Promise<void> {
   await mockRequest('session-action', null)
-  const session = getSession(sessionId, ['pending_learner_review'])
-  if (session.learnerId !== CURRENT_USER_ID) throw new SessionClosedError()
-  openDispute(session, { raisedBy: CURRENT_USER_ID, cause: 'completion', reason })
+  const session = getSession(sessionId, ['awaiting_settlement'])
+  session.status = 'disputed'
+  session.dispute = { raisedBy: CURRENT_USER_ID, reason, raisedAt: new Date().toISOString() }
 }
 
 export async function submitReview(sessionId: string, { rating, comment }: ReviewDraft): Promise<void> {

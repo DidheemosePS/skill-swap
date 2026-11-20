@@ -9,6 +9,8 @@ interface MatchCardProps {
   onRequest: (match: MatchRecommendation) => void
   // Only one card per page gets the filled button, so there's one obvious next step.
   isPrimary?: boolean
+  // A lone match lies across the row (person, trade, action) instead of leaving most of it empty.
+  wide?: boolean
 }
 
 const namesFor = (skills: UserSkill[], ids: string[]) =>
@@ -16,7 +18,7 @@ const namesFor = (skills: UserSkill[], ids: string[]) =>
 
 // A person to swap with: their face and line, then the trade in one sentence on a soft panel, then one action.
 // The deal is said in words ("they want your Python", "1 credit") rather than a coloured tag.
-export default function MatchCard({ match, onRequest, isPrimary = false }: MatchCardProps) {
+export default function MatchCard({ match, onRequest, isPrimary = false, wide = false }: MatchCardProps) {
   const { peer } = match
   const firstName = peer.name.split(' ')[0]
   const isPaid = match.creditCost === 1
@@ -24,8 +26,8 @@ export default function MatchCard({ match, onRequest, isPrimary = false }: Match
   const teach = namesFor(peer.learnSkills, match.learnsFromYou)
 
   return (
-    <article className="flex h-full flex-col rounded-2xl bg-card p-5">
-      <div className="flex items-center gap-3.5">
+    <article className={`flex h-full flex-col rounded-2xl border border-line bg-card p-5 ${wide ? 'md:flex-row md:items-center md:gap-6' : ''}`}>
+      <div className={`flex items-center gap-3.5 ${wide ? 'md:w-72 md:shrink-0' : ''}`}>
         <Avatar name={peer.name} url={peer.avatarUrl} size="lg" />
         <div className="min-w-0">
           <h3 className="text-lg font-semibold text-ink">
@@ -34,11 +36,11 @@ export default function MatchCard({ match, onRequest, isPrimary = false }: Match
           <p className="text-sm text-pretty text-muted [overflow-wrap:anywhere]">{peer.headline}</p>
         </div>
       </div>
-      <p className="mt-4 rounded-xl bg-surface px-3.5 py-3 text-sm text-ink">
+      <p className={`mt-4 rounded-xl bg-shell px-3.5 py-3 text-sm text-ink ${wide ? 'md:mt-0 md:flex-1' : ''}`}>
         You learn <b className="font-semibold">{learn.join(', ')}</b>
         <span className="text-muted"> · {isPaid ? '1 credit an hour' : <>they want your <b className="font-semibold text-ink">{teach.join(', ')}</b></>}</span>
       </p>
-      <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+      <div className={`mt-auto flex items-center justify-between gap-3 pt-4 ${wide ? 'md:mt-0 md:gap-5 md:pt-0' : ''}`}>
         <StarRating rating={peer.rating} reviewCount={peer.reviewCount} completedSessions={peer.completedSessions} />
         <Button
           variant={isPrimary ? 'primary' : 'secondary'}

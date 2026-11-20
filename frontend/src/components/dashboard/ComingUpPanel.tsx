@@ -26,9 +26,9 @@ export default function ComingUpPanel({ status, upcoming, imminentId }: ComingUp
   const booked = upcoming.filter((session) => session.id !== imminentId)
 
   return (
-    <section aria-labelledby="coming-up-heading" className="rounded-2xl bg-card p-5 pb-2">
+    <section aria-labelledby="coming-up-heading" className="rounded-2xl border border-line bg-card p-5 pb-2">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="coming-up-heading" className="text-lg font-semibold text-ink">Coming up</h2>
+        <h2 id="coming-up-heading" className="font-display text-lg font-semibold text-ink">Coming up</h2>
         <Link to="/sessions" className="inline-flex min-h-9 items-center rounded text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">All</Link>
       </div>
       {status === 'loading' && booked.length === 0 && <div role="status" aria-label="Loading sessions"><ComingUpBody /></div>}
@@ -47,8 +47,10 @@ export default function ComingUpPanel({ status, upcoming, imminentId }: ComingUp
                 <Avatar name={session.partner.name} url={session.partner.avatarUrl} size="xs" />
                 <div className="min-w-0 flex-1">
                   <Link to={`/user/${session.partner.id}`} className="rounded font-semibold text-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">{session.partner.name}</Link>
-                  <p className="text-sm text-muted">
-                    {session.isTeaching ? 'Teaching' : 'Learning'} {session.skillName} · <span className="figures">{formatSlotTime(session.startsAt)}</span>
+                  {/* The time sits in its own right-hand column, so a narrow board column never strands a separator. */}
+                  <p className="flex gap-3 text-sm text-muted">
+                    <span className="min-w-0 flex-1">{session.isTeaching ? 'Teaching' : 'Learning'} {session.skillName}</span>
+                    <span className="figures shrink-0 font-medium text-ink">{formatSlotTime(session.startsAt)}</span>
                     <span className="sr-only">, {date.toDateString()}</span>
                   </p>
                 </div>

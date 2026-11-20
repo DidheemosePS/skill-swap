@@ -30,7 +30,7 @@ export default function ThreadDialogs({ peerId, peerFirstName, counterRequest, o
         <CounterOfferModal request={counterRequest} peerId={peerId} peerFirstName={peerFirstName} onUpdated={onUpdated} onClose={onCounterClose} />
       )}
       {/* Always mounted, so the rating step can follow a drawer that has already closed. */}
-      <SettleSessionDialogs session={settle?.session ?? null} mode={settle?.mode ?? 'resolve'} onClose={onSettleClose} onSettled={onSettled} />
+      <SettleSessionDialogs session={settle?.session ?? null} step={settle?.step ?? 'confirm'} onClose={onSettleClose} onSettled={onSettled} />
       {booking && (
         <SwapRequestModal
           offer={booking}

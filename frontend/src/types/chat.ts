@@ -91,12 +91,11 @@ export interface ConversationSummary extends Conversation {
     // The current user withdrew or declined it themselves, so the copy speaks to them as the one who closed it.
     closedByMe: boolean
   } | null
-  // A past session with this member whose outcome the current user still owes (mark it, or confirm it).
-  // skillId and iTaught let the note name the session ("You taught Dina Python") rather than just its time.
-  // An ended session still settling on someone else's side: a no-show report or dispute being checked,
-  // or a session the member taught waiting on the learner's confirmation. The row says so instead of going blank.
-  settlingSession: 'under_review' | 'awaiting_confirm' | null
-  owedSession: { id: string; startsAt: string; mode: 'resolve' | 'confirm'; skillId: string; iTaught: boolean } | null
+  // An ended session with this member that is settling on its own (the 24-hour window). Nothing is owed;
+  // the thread offers Confirm now and Raise a concern. skillId and iTaught let the note name the session.
+  settling: { id: string; startsAt: string; skillId: string; iTaught: boolean; iConfirmed: boolean } | null
+  // A concern about a session with this member is with an admin, so the row says so instead of going blank.
+  underReview: boolean
 }
 
 export type MessageDraft = { kind: 'text'; body: string }

@@ -57,25 +57,14 @@ function getLatestRequest(conversationId: string): ConversationSummary['latestRe
   }
 }
 
-// The same rule as the dashboard's settle rows: an ended session to mark, or a teacher's marking to confirm.
-function getOwedSession(peerId: string): ConversationSummary['owedSession'] {
-  const now = Date.now()
-  for (const session of mockSessions) {
-    if (![session.teacherId, session.learnerId].includes(peerId) || ![session.teacherId, session.learnerId].includes(CURRENT_USER_ID)) continue
-    const phase = getSessionPhase(session, now)
-    const owed = { id: session.id, startsAt: session.startsAt, skillId: session.skillId, iTaught: session.teacherId === CURRENT_USER_ID }
-    if (phase === 'awaiting_settlement') return { ...owed, mode: 'resolve' }
-    if (phase === 'pending_learner_review' && session.learnerId === CURRENT_USER_ID) return { ...owed, mode: 'confirm' }
-  }
-  return null
-}
+const sharedWith = (peerId: string) =>
+  mockSessions.filter((session) => [session.teacherId, session.learnerId].includes(peerId) && [session.teacherId, session.learnerId].includes(CURRENT_USER_ID))
 
-// A session with this peer waiting on an admin check, or on the learner confirming what the member taught.
-function getSettlingSession(peerId: string): ConversationSummary['settlingSession'] {
-  const shared = mockSessions.filter((session) => [session.teacherId, session.learnerId].includes(peerId) && [session.teacherId, session.learnerId].includes(CURRENT_USER_ID))
-  if (shared.some((session) => session.status === 'disputed')) return 'under_review'
-  if (shared.some((session) => session.status === 'pending_learner_review' && session.teacherId === CURRENT_USER_ID)) return 'awaiting_confirm'
-  return null
+// The same rule as the dashboard's Settling cards: an ended session in its 24-hour window.
+function getSettling(peerId: string): ConversationSummary['settling'] {
+  const now = Date.now()
+  const session = sharedWith(peerId).find((item) => getSessionPhase(item, now) === 'awaiting_settlement')
+  return session ? { id: session.id, startsAt: session.startsAt, skillId: session.skillId, iTaught: session.teacherId === CURRENT_USER_ID, iConfirmed: session.confirmedBy.includes(CURRENT_USER_ID) } : null
 }
 
 export function fetchConversations(): Promise<ConversationSummary[]> {
@@ -83,7 +72,7 @@ export function fetchConversations(): Promise<ConversationSummary[]> {
   const summaries = mockConversations
     .flatMap((conversation) => {
       const peer = mockUsers.find((user) => user.id === conversation.peerId)
-      return peer ? [{ ...conversation, peer, hasSessionHistory: hasSessionHistoryWith(peer.id), latestRequest: getLatestRequest(conversation.id), owedSession: getOwedSession(peer.id), settlingSession: getSettlingSession(peer.id) }] : []
+      return peer ? [{ ...conversation, peer, hasSessionHistory: hasSessionHistoryWith(peer.id), latestRequest: getLatestRequest(conversation.id), settling: getSettling(peer.id), underReview: sharedWith(peer.id).some((session) => session.status === 'disputed') }] : []
     })
     .sort((a, b) => Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt))
   return mockRequest('conversations', summaries, [])

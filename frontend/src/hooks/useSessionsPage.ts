@@ -1,7 +1,6 @@
 import { fetchMySessions, fetchRequestedSessions } from '../services/sessionService'
 import type { RequestedSession, SessionDetail } from '../types'
 import { getImminentSession, getSessionPhase } from '../utils/sessions'
-import type { SettleMode } from './useDashboard'
 import { useAsyncData } from './useAsyncData'
 import { useNow } from './useNow'
 
@@ -10,10 +9,10 @@ export type AgendaItem =
   | { kind: 'booked'; at: string; session: SessionDetail }
   | { kind: 'requested'; at: string; request: RequestedSession }
 
-const HISTORY = new Set(['completed', 'cancelled', 'no_show_confirmed'])
+const HISTORY = new Set(['completed', 'cancelled', 'no_show_confirmed', 'mutual_no_show'])
 
-// Sorts every session into the page's order: the one to join, what to settle, what's coming, what others
-// are checking, and the settled history. Kept out of the page so the page stays layout.
+// Sorts every session into the page's order: the one to join, what's settling, what an admin is reviewing,
+// what's coming, and the settled history. Kept out of the page so the page stays layout.
 export function useSessionsPage() {
   const sessions = useAsyncData(fetchMySessions)
   const requests = useAsyncData(fetchRequestedSessions)
@@ -25,19 +24,10 @@ export function useSessionsPage() {
   const byStart = (a: { startsAt: string }, b: { startsAt: string }) => Date.parse(a.startsAt) - Date.parse(b.startsAt)
   const upcoming = all.filter((session) => phaseOf(session) === 'confirmed').sort(byStart)
 
-  // The member owes these an outcome or a confirmation; each holds a credit until they act.
-  const toSettle = all.flatMap((session): { session: SessionDetail; mode: SettleMode }[] => {
-    const phase = phaseOf(session)
-    if (phase === 'awaiting_settlement') return [{ session, mode: 'resolve' }]
-    if (phase === 'pending_learner_review' && !session.isTeaching) return [{ session, mode: 'confirm' }]
-    return []
-  })
-  // Settled on the member's side but not closed: a report or dispute under review, or a taught session
-  // waiting on the learner. Listed so they don't vanish between Settle and History.
-  const checking = all.filter((session) => {
-    const phase = phaseOf(session)
-    return phase === 'disputed' || (phase === 'pending_learner_review' && session.isTeaching)
-  })
+  // Ended and in the 24-hour window: each settles on its own from the attendance records.
+  const settling = all.filter((session) => phaseOf(session) === 'awaiting_settlement').sort(byStart)
+  // A concern with an admin. Listed so it doesn't vanish between Settling and Past.
+  const checking = all.filter((session) => phaseOf(session) === 'disputed')
   const history = all.filter((session) => HISTORY.has(phaseOf(session))).sort((a, b) => byStart(b, a))
 
   const agenda: AgendaItem[] = [
@@ -53,7 +43,7 @@ export function useSessionsPage() {
     // Requests add agenda lines, so "nothing here" waits for them too.
     requestsSettled: requests.status !== 'loading',
     imminent: getImminentSession(upcoming, now),
-    toSettle,
+    settling,
     agenda,
     checking,
     history,

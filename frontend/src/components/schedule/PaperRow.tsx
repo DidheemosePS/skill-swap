@@ -13,7 +13,7 @@ interface PaperRowProps {
 // An ended session that isn't closed yet, as a card: who, the question, one short line, and the answer.
 export default function PaperRow({ person, title, children, action }: PaperRowProps) {
   return (
-    <li className="flex flex-col gap-4 rounded-2xl bg-card p-5">
+    <li className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-5">
       <div className="flex items-start gap-3.5">
         <Avatar name={person.name} url={person.avatarUrl} size="sm" />
         <div className="min-w-0">

@@ -17,7 +17,7 @@ interface WalletSummaryProps {
 export function CreditRules({ onReplayTour }: { onReplayTour?: () => void }) {
   const link = 'mt-2 inline-flex min-h-11 items-center rounded text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent lg:min-h-9'
   return (
-    <section aria-labelledby="rules-heading" className="rounded-2xl bg-card p-5">
+    <section aria-labelledby="rules-heading" className="rounded-2xl border border-line bg-card p-5">
       <h2 id="rules-heading" className="text-base font-semibold text-ink">How credits work</h2>
       <p className="mt-1 text-sm text-muted">Teach an hour, earn 1. Spend 1 to learn from anyone. Free swaps move nothing.</p>
       {onReplayTour ? <button type="button" onClick={onReplayTour} className={link}>Replay the tour</button> : <span aria-hidden="true" className={link}>Replay the tour</span>}

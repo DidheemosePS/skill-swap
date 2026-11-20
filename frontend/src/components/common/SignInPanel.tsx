@@ -8,9 +8,10 @@ import ProviderIcon from './ProviderIcon'
 
 const PROVIDERS: SocialProvider[] = ['google', 'github']
 
-// Shown by AuthGate in place of any page while signed out, so it needs no route of its own. Signing in reloads
-// the member, and the gate then shows the page at the same URL. The two provider buttons look the way those
-// buttons look everywhere: white, the provider's own mark, "Continue with".
+// The sign-in form, shown by the /login route (LoginPage). Signing in loads the member into the auth
+// context, and LoginPage then redirects — back to the page AuthGate recorded, or to the dashboard. The
+// two provider buttons look the way those buttons look everywhere: white, the provider's own mark,
+// "Continue with".
 export default function SignInPanel() {
   const { signIn } = useAuth()
   const [pending, setPending] = useState<SocialProvider | null>(null)
@@ -27,10 +28,14 @@ export default function SignInPanel() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col px-4 py-6 sm:px-8">
+    // The brand sits out of the flow, so the panel centres on the browser window itself
+    // rather than on the space left under the brand row (which read as pushed down).
+    <main className="relative flex min-h-dvh flex-col justify-center px-4 py-20 sm:px-8">
       <title>Sign in · Skill Swap</title>
-      <BrandMark />
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
+      <div className="absolute top-6 left-4 sm:left-8">
+        <BrandMark />
+      </div>
+      <div className="mx-auto w-full max-w-sm">
         {/* The logo's two circles, large: the swap is the whole idea, so it is the one picture on the page. */}
         <svg aria-hidden="true" viewBox="0 0 64 40" className="h-10 w-16 text-ink">
           <circle cx="20" cy="20" r="18" fill="currentColor" />

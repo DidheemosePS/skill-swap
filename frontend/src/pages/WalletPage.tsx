@@ -58,7 +58,7 @@ export default function WalletPage() {
             <WalletSummary wallet={wallet.wallet} status={wallet.status} onRetry={wallet.refresh} onReplayTour={tour.open} />
           </div>
 
-          <section aria-labelledby="ledger-heading" className="rounded-2xl bg-card lg:col-span-7 lg:col-start-1 lg:row-start-1 xl:col-span-8">
+          <section aria-labelledby="ledger-heading" className="rounded-2xl border border-line bg-card lg:col-span-7 lg:col-start-1 lg:row-start-1 xl:col-span-8">
             <h2 id="ledger-heading" className="sr-only">Transactions</h2>
             <Tabs label="Filter transactions" tabs={tabs} active={filter} onChange={setFilter} listClassName="border-b border-line px-4 py-3 sm:px-6" panelClassName="">
               {ledger.data === null && ledger.status === 'loading' && (

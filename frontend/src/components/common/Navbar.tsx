@@ -1,10 +1,9 @@
 import { Link, NavLink } from 'react-router-dom'
 import AvatarMenu from './AvatarMenu'
 import BottomTabs from './BottomTabs'
-import { countLabel, NAV_LINKS } from './navLinks'
+import { countWords, NAV_LINKS } from './navLinks'
 import type { NavCountKey } from './navLinks'
 import NavCount from './NavCount'
-import Sidebar from './Sidebar'
 import Skeleton from './Skeleton'
 import WalletChip from './WalletChip'
 import BrandMark from './BrandMark'
@@ -21,16 +20,16 @@ interface NavbarProps {
   placeholder?: boolean
 }
 
+// px-2.5 rather than 3, so brand, four places, balance and account fit one row at 768px.
 const pillClasses =
-  'inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors hover:bg-canvas focus-visible:ring-2 focus-visible:ring-accent'
+  'inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white'
 
-// From lg up the app sits in a left sidebar. Below it, one header row: the places (with their own counts),
-// the balance chip and the account menu; phones move the places to bottom tabs.
+// The noticeboard's ultramarine bar at every width: the places (with their own counts), the balance chip and the
+// account menu; phones move the places to bottom tabs. Focus rings turn white so they show on the blue.
 export default function Navbar({ credits, heldCredits, counts, name, avatarUrl, profileId, placeholder = false }: NavbarProps) {
   return (
     <>
-      <Sidebar credits={credits} heldCredits={heldCredits} counts={counts} name={name} avatarUrl={avatarUrl} profileId={profileId} placeholder={placeholder} />
-      <header className="sticky top-0 z-20 border-b border-line bg-shell lg:hidden">
+      <header className="sticky top-0 z-20 bg-next [&_:is(a,button):not([data-popover]_*):focus-visible]:ring-white">
         {/* Lets keyboard users jump past the nav; it only appears while focused. */}
         <a
           href="#main"
@@ -38,23 +37,24 @@ export default function Navbar({ credits, heldCredits, counts, name, avatarUrl, 
         >
           Skip to content
         </a>
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
-          <Link to="/dashboard" className="mr-auto inline-flex min-h-11 items-center rounded font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent md:mr-0">
-            <BrandMark />
+        <div className="mx-auto flex h-16 max-w-page items-center gap-2 px-4 sm:px-6 lg:px-10">
+          <Link to="/dashboard" className="mr-auto inline-flex min-h-11 items-center rounded font-display text-xl font-bold whitespace-nowrap text-white outline-none focus-visible:ring-2 md:mr-0">
+            <BrandMark onDark />
           </Link>
-          <nav aria-label="Main" className="ml-6 hidden gap-1 md:flex">
+          <nav aria-label="Main" className="ml-3 hidden gap-1 md:flex">
             {NAV_LINKS.map((link) => {
               const count = link.countKey ? counts[link.countKey] : 0
               return (
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  aria-label={countLabel(link.label, link.countKey, count)}
                   // A filled pill as well as colour, so the current page doesn't rely on colour alone.
-                  className={({ isActive }) => `${pillClasses} ${isActive ? 'bg-next-soft text-ink' : 'text-muted hover:text-ink'}`}
+                  className={({ isActive }) => `${pillClasses} ${isActive ? 'bg-white/15 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}
                 >
-                  {link.label}
-                  <NavCount value={count} />
+                  {/* The visible label leads the spoken name; the badge is aria-hidden, so its meaning is said here. */}
+                  {link.label}{' '}
+                  <NavCount value={count} tone="board" />
+                  {count > 0 && <span className="sr-only">{countWords(link.countKey, count)}</span>}
                 </NavLink>
               )
             })}

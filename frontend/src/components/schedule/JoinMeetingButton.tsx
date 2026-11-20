@@ -1,10 +1,8 @@
-import { logAttendance } from '../../services/sessionService'
 import type { Session } from '../../types'
 import { getJoinState, JOIN_WINDOW_MINUTES } from '../../utils/sessions'
 import Button from '../common/Button'
 import { getButtonClasses } from '../common/buttonStyles'
 import type { ButtonVariant } from '../common/buttonStyles'
-import { useToast } from '../../hooks/useToast'
 
 interface JoinMeetingButtonProps {
   session: Pick<Session, 'id' | 'startsAt' | 'durationMinutes' | 'meetingUrl'>
@@ -17,23 +15,17 @@ interface JoinMeetingButtonProps {
 }
 
 export default function JoinMeetingButton({ session, now, className = '', variant = 'primary', partnerName }: JoinMeetingButtonProps) {
-  const toast = useToast()
   const joinState = getJoinState(session, now)
-
-  // The meeting opens either way; a failed log is surfaced because no-show checks rely on it.
-  function recordJoin() {
-    logAttendance(session.id).catch(() => toast.error("Your meeting opened, but we couldn't record that you joined.", recordJoin))
-  }
 
   return (
     <>
       {joinState === 'open' && session.meetingUrl ? (
-        // A real link rather than window.open, so popup blockers never stop someone joining.
+        // A real link rather than window.open, so popup blockers never stop someone joining. The meeting
+        // provider records who joined; the browser reports nothing.
         <a
           href={session.meetingUrl}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={recordJoin}
           aria-label={partnerName ? `Join meeting with ${partnerName}` : undefined}
           className={getButtonClasses(variant, className)}
         >

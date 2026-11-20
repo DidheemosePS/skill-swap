@@ -15,10 +15,8 @@ export const GRID_HOURS = Array.from({ length: 14 }, (_, index) => index + 8)
 
 export const slotKey = ({ day, startHour }: TimeSlot) => `${day}-${startHour}`
 
-export function formatHour(startHour: number): string {
-  const date = new Date(2000, 0, 1, startHour)
-  return new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).format(date)
-}
+// "08:00": the same 24-hour form the profile grid and Sessions use for an hour.
+export const formatHour = (startHour: number) => `${String(startHour).padStart(2, '0')}:00`
 
 export const getViewerTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 

@@ -32,6 +32,22 @@
 
 ## 3. Complete Page Breakdown & Frontend Functionality
 
+### 🚪 0. Landing Page (`/`)
+* **Purpose:** The only public page. Shows a visitor how skill swapping works — including trying a match — before they sign in, and explains the hybrid credit model honestly (pre-launch: no testimonials, member counts or ratings anywhere; every person shown is a labelled example).
+* **Layout & Key UI Elements:**
+  * **Own top bar** (no app places or wallet): brand, section anchors, `Sign in` and `Get started`.
+  * **Dark hero band** (the "now card" ink): headline, CTAs, and the **"Try a swap" demo card** — per side, six suggestion chips plus a free-text field accepting any skill; the result is an example-match card (SwapPair with "You") with three outcomes: mutual → `Free swap`, teacher-only → `1 credit an hour` with who'd pay the visitor to teach, unknown skill → open-seat "how it would work". Same-skill picks are blocked like onboarding. A **skill ticker** (two counter-scrolling rows of example trades, paused on hover, static under reduced motion) closes the band.
+  * **How a swap happens:** three steps shown as product vignettes (profile chips, a swap request with times and Accept, the dark session card with Join).
+  * **Credit model:** the `1 h ↔ 1 h` free-mutual equation, then earn (`+1 credit`, green) → spend (`−1 credit`, ink) ledger cards with faces.
+  * **Trust rows:** escrow ("held, not spent" with the refund rule), Reliable Swapper criteria, fixed 1-hour sessions with recorded attendance, both-sides ratings. Then a FAQ (native `details`) and a closing CTA over the example face pile.
+* **Interactions & Behavior:**
+  * `/` sits **outside AuthGate** and is shown to everyone. Visitors get `Sign in` and `Get started` (both to `/login`); a signed-in member sees the same page with those swapped for a single `Go to dashboard` in the top bar (and matching labels on the hero, demo and closing CTAs).
+  * The demo is client-only: fixtures and matching live in `src/data/landingDemo.ts`; no API calls.
+* **Login (`/login`, `LoginPage`):** the dedicated sign-in route, outside the gate, rendering the provider panel (`SignInPanel`). A signed-in visitor never sees the form: they are sent to the URL they originally wanted (passed by `AuthGate` in router state) or to `/dashboard`. `AuthGate` redirects signed-out visits to any private page here with that return-to state, and signing out anywhere navigates here explicitly with no return-to.
+* **404 (`*`, `NotFoundPage`):** any unknown URL shows a standalone not-found page beside the landing, outside the gate, so visitors see it without being asked to sign in. Two dashed empty seats around the exchange mark, a large `404` figure, the bad path named, and adaptive actions: members get `Go to your dashboard` / `Explore members`, visitors `Go to the home page` / `Sign in`.
+
+---
+
 ### 🌐 1. Onboarding Flow (`/onboarding`)
 * **Purpose:** Transform a newly authenticated user into a fully discoverable swapper by capturing their teach/learn inventory and recurring weekly availability.
 * **Layout & Key UI Elements:**
@@ -60,7 +76,7 @@
   * **Welcome tour:** after onboarding, a 4-step centred tour (free swaps, teach to earn, spend to learn and held credits, answering "Did it happen?") with `Skip tour`; shown once, never to existing members, replayable from Wallet. It replaces the per-row credit tags.
 * **Interactions & Behavior:**
   * **Clicking "Request Swap":** Opens a time-slot proposal modal displaying the peer's availability window. Submitting creates a pending session and redirects to `/messages` with an embedded request card.
-  * **Clicking "Join Meeting":** Opens the video room link in a new tab 10 minutes prior to start time and logs an attendance timestamp.
+  * **Clicking "Join Meeting":** Opens the session room (`/sessions/:id/room`) from 10 minutes before the start. Attendance comes from the video provider, not from the click.
 
 ---
 
@@ -107,13 +123,23 @@
 ### 📅 6. Sessions Manager (`/sessions`)
 * **Purpose:** Central hub to join upcoming sessions, settle ended ones, and see what each session did to the member's credits.
 * **Layout & Key UI Elements (one page, no tabs, read top to bottom):**
-  * **To confirm:** cards for ended sessions. Your own come first with a warm tint and a question ("Did your Python session with Dina happen?", "Bea marked your Spanish session complete"), one line on where the credit stands, and one filled action (`Did it happen?` / `Confirm`). Ones waiting on others follow as plain cards with their status.
+  * **Settling:** cards for sessions that ended in the last 24 hours. Each states the outcome the attendance records show ("You both joined. Your credit goes to Dina at 19:00 tomorrow.", "Dina didn't join. Your credit comes back at 19:00 tomorrow.") with a quiet `Raise a concern` (a reason up to 200 characters, then an admin decides) and, while both still can, `Confirm now` to settle at once.
   * **Coming up:** one card per session in time order: date block (day, number, time), both faces, the swap's name ("Teaching React to Ivo"), a quiet line (`Reschedule`, `Cancel`, or "Starts in 8 min") and one action (`Join meeting` on the session starting now, else `Chat`). Requested times are the same card, dashed and faded, with `Reply` / `View request`.
-  * **Session status words (one vocabulary for To confirm and History):** `Needs your answer`, `Needs your confirmation`, `Waiting on Dina to confirm`, `No-show reported · checking records`, `Disputed · admin reviewing`, then `Completed`, `Cancelled`, `No-show · Hana didn't attend` (or `you didn't attend`). Only a completed session says "You taught …", and a cancelled one "Was to learn …".
+  * **Session status words (one vocabulary for Settling and History):** `Settling`, `Concern raised · admin reviewing`, then `Completed`, `Cancelled`, `Cancelled late`, `No-show · Hana didn't attend` (or `you didn't attend`), `Neither joined`. Only a completed session says "You taught …", and a cancelled one "Was to learn …".
   * **Past:** a list card: face, what happened ("You taught Dina Python"), date and status, `Leave a review` where owed, and the credit change on the right; totals beside the heading ("+4 earned · −1 spent"). The latest 5 show, then `Show all · N more`.
-  * **Post-Session Drawer:** `Mark as completed` (releases or queues the credit, then the star rating) and `Report no-show`. The meeting record decides which leads: when the partner never joined or was in for under 15 minutes, `Report no-show` is the primary and the drawer states how long they were in.
 * **Interactions & Behavior:**
-  * **Session Settlement:** Marking a session completed releases the 1 credit escrow to the teacher. Reporting a no-show locks the credit and initiates a 24-hour verification window against attendance logs. After any settle, cancel, reschedule or review, a dismissible notice under the heading says what happened and what moved in credits ("Your 1 credit is back."). Rescheduling is a move, not a cancellation: the chat says "Session moved: new times proposed.", the old request's line reads "moved to new times by you", the reason rides on the new request as its note, and the held credit follows the new request.
+  * **Session Settlement:** automatic. At the scheduled end, the attendance records decide the outcome: both joined = completed (credit to the teacher); only the learner = refund; only the teacher = credit to the teacher; neither = refund, both marked absent. Joining late still counts. Credit moves 24 hours after the end unless a concern is raised; if both members `Confirm now`, it moves at once. Members never report each other.
+  * **Cancellation cutoff:** free until 2 hours before the start; times less than 2 hours away can't be proposed. The card shows "Free to cancel until 16:00". After the cutoff the cancel dialog says what happens before confirming: a learner reads "Less than 2 hours to go. If you cancel now, your credit goes to Bea." (`Keep the session` first, then `Cancel anyway`); a teacher reads that the learner is refunded and late cancellations count against their reliability; a two-way swap moves no credit and only marks the late cancel. A late cancel counts as one absence for the Reliable Swapper badge.
+  * After any settle, cancel, reschedule or review, a toast says what happened and what moved in credits ("Session cancelled. Your credit went to Bea."). Rescheduling is a move, not a cancellation: the chat says "Session moved: new times proposed.", the old request's line reads "moved to new times by you", the reason rides on the new request as its note, and the held credit follows the new request.
+
+---
+
+### 🎥 6b. Session Room (`/sessions/:id/room`)
+* **Purpose:** The live session, held in an embedded video call (Daily Prebuilt) so attendance comes from the provider, not from the member's browser.
+* **Layout & Key UI Elements:** The call fills the page under a slim bar: both faces (SwapPair), the swap's name, a countdown to the scheduled end and `Leave`. During the first 10 minutes the bar shows the grace timer ("Waiting for Bea · 7:12").
+* **Interactions & Behavior:**
+  * Only the session's two members can enter, with a short-lived join token from the backend. The room opens 10 minutes before the start and stays open until the scheduled end, so late joiners can still hold the session.
+  * Before the window opens, or after the session, the page says when it opens or what happened and links back to Sessions.
 
 ---
 
@@ -147,15 +173,25 @@ skill-swap/
 ├── PROJECT_PLAN.md                 # Master Blueprint
 ├── API_INTEGRATION_MAP.md          # Backend API Contract
 ├── backend/                        # FastAPI Python Backend (uv)
-│   ├── app.py                      # Application Entrypoint
-│   ├── alembic/                    # DB Migrations
+│   ├── app.py                      # Application entrypoint (uv run app.py)
+│   ├── pyproject.toml              # From `uv init`
+│   ├── alembic.ini, alembic/       # From `alembic init alembic`; DB migrations
+│   ├── .env.example                # Setting names only; real values in .env (not committed)
 │   ├── app/
-│   │   ├── api/v1/endpoints/       # Auth, Users, Skills, Matches, Sessions, Chat
-│   │   ├── core/                   # Security, JWT, DB engine
-│   │   ├── models/                 # SQLModel Schemas (User, Skill, Session, Wallet)
-│   │   ├── services/               # Matching logic, Escrow service
-│   │   └── websockets/             # Real-time chat & notification manager
-│   └── pyproject.toml
+│   │   ├── core/                   # config, database engine, security (OAuth, session cookie)
+│   │   ├── models/                 # SQLModel tables: user, skill, availability, swap_request,
+│   │   │                           # session, outcome, review, wallet, chat
+│   │   ├── schemas/                # Request/response shapes (snake_case, per API_INTEGRATION_MAP)
+│   │   ├── api/v1/
+│   │   │   ├── router.py, deps.py  # Route registry; current user and DB session dependencies
+│   │   │   └── endpoints/          # auth, users, skills, settings, matches, swap_requests,
+│   │   │                           # sessions, conversations, wallet, webhooks
+│   │   ├── services/               # matching, slots and holds, escrow ledger, settlement,
+│   │   │                           # reliability, meetings, chat rules
+│   │   ├── websockets/             # Connection manager and chat events (message, read, session_updated)
+│   │   ├── jobs/                   # Scheduler: request expiry, session end, 24 h settlement
+│   │   └── seed/                   # Demo data matching the frontend mocks
+│   └── tests/                      # api/ and services/
 │
 ├── frontend/                       # React TypeScript Frontend (pnpm, oxlint)
 │   ├── public/                     # Static icons, badges, illustrations
@@ -164,6 +200,7 @@ skill-swap/
 │       │   ├── common/             # Navbar, Footer, Modal, Toast, Button, Badge
 │       │   ├── cards/              # SwapCard, MentorCard, ReviewCard, StatCard
 │       │   ├── chat/               # ChatBox, MessageBubble, SwapRequestCard
+│       │   ├── landing/            # Public landing: header, SwapDemo, SkillTicker, sections
 │       │   ├── schedule/           # AvailabilityGrid, TimeSlotPicker, CalendarView
 │       │   └── wallet/             # CreditSummaryCard, TransactionTable
 │       │
@@ -171,12 +208,16 @@ skill-swap/
 │       ├── data/                   # mockData.ts (Frontend Mock Data)
 │       ├── hooks/                  # useAuth, useWebSocket, useMatchEngine, useDebounce
 │       ├── pages/                  # React Route Components / Views
+│       │   ├── LandingPage.tsx     # Public Landing (outside AuthGate)
+│       │   ├── LoginPage.tsx       # /login sign-in route with return-to redirect
+│       │   ├── NotFoundPage.tsx    # 404 for unknown URLs (outside AuthGate)
 │       │   ├── OnboardingPage.tsx  # Multi-step Onboarding Flow
 │       │   ├── DashboardPage.tsx   # Main Operational Feed
 │       │   ├── ExplorePage.tsx     # Global Directory & Filters
 │       │   ├── UserProfilePage.tsx # Public Mentor Profile
 │       │   ├── MessagesPage.tsx    # Real-time Chat
 │       │   ├── SessionsPage.tsx    # Sessions Manager & Post-Session Actions
+│       │   ├── SessionRoomPage.tsx # Embedded video call for one session
 │       │   ├── WalletPage.tsx      # Credit Ledger
 │       │   └── SettingsPage.tsx    # User Settings & Schedule Configuration
 │       │
@@ -188,3 +229,8 @@ skill-swap/
 ├── docker-compose.yml              # Local container orchestration
 └── README.md
 ```
+---
+
+## 5. After Release (experiments, not in the build)
+
+* **AI concern helper:** when a member raises a concern, an agent reads only the session's attendance records (scheduled times, join and leave times, overlap) and the two members' reliability history, then drafts a structured recommendation (verdict, confidence, reasoning) for the admin. It never moves credits or changes a status itself. Routine sessions never call it. Built and judged on real concern volume after launch.

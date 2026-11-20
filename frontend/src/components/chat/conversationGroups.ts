@@ -4,11 +4,11 @@ export type ConversationGroup = 'needs' | 'booked' | 'waiting' | 'other'
 
 const SESSION_MS = 60 * 60_000
 
-// Who acts next: an outcome you owe or a request waiting on you first, then booked, then waiting on them.
-export function getConversationGroup({ latestRequest, owedSession, settlingSession }: ConversationSummary, now: number): ConversationGroup {
-  if (owedSession) return 'needs'
-  // A live request or booking below says more; otherwise a session settling on their side means waiting on them.
-  const fallback = settlingSession ? 'waiting' : 'other'
+// Who acts next: a request waiting on you first, then booked, then waiting on them. A session that is settling
+// or under review waits on the clock or an admin, never on the member.
+export function getConversationGroup({ latestRequest, settling, underReview }: ConversationSummary, now: number): ConversationGroup {
+  // A live request or booking below says more; otherwise a settling or reviewed session means waiting.
+  const fallback = settling || underReview ? 'waiting' : 'other'
   if (!latestRequest) return fallback
   if (latestRequest.status === 'pending') return latestRequest.awaitingMe ? 'needs' : 'waiting'
   if (latestRequest.status === 'confirmed' && latestRequest.confirmedStartsAt && Date.parse(latestRequest.confirmedStartsAt) + SESSION_MS > now) return 'booked'

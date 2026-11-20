@@ -27,6 +27,7 @@ export const mockSessions: Session[] = [
     status: 'confirmed',
     meetingUrl: meeting('bea-soon'),
     attendance: [],
+    confirmedBy: [],
   },
   // Alex's credit for this booking is the 1 credit held in escrow in wallet.ts.
   {
@@ -41,6 +42,7 @@ export const mockSessions: Session[] = [
     status: 'confirmed',
     meetingUrl: meeting('faye-escrow'),
     attendance: [],
+    confirmedBy: [],
   },
   {
     id: 'session-ivo-upcoming',
@@ -54,6 +56,7 @@ export const mockSessions: Session[] = [
     status: 'confirmed',
     meetingUrl: meeting('ivo-upcoming'),
     attendance: [],
+    confirmedBy: [],
   },
   {
     id: 'session-cole-pending',
@@ -67,6 +70,7 @@ export const mockSessions: Session[] = [
     status: 'pending',
     meetingUrl: null,
     attendance: [],
+    confirmedBy: [],
   },
   // Evan's own request to Alex, so Accept, Counter and Decline can be tried in Messages.
   {
@@ -81,8 +85,10 @@ export const mockSessions: Session[] = [
     status: 'pending',
     meetingUrl: null,
     attendance: [],
+    confirmedBy: [],
   },
-  // Ended 30 minutes ago. Dina left after 3 minutes, which an admin would see if Alex reports a no-show.
+  // Ended 30 minutes ago and settling. Dina joined (so it counts as both present) but left after 3 minutes,
+  // the case Raise a concern is for.
   {
     id: 'session-dina-settle',
     swapType: 'one_way',
@@ -95,8 +101,10 @@ export const mockSessions: Session[] = [
     status: 'awaiting_settlement',
     meetingUrl: meeting('dina-settle'),
     attendance: [stayed(ALEX, fromNow({ minutes: -91 }), 60), stayed('user-dina', fromNow({ minutes: -88 }), 3)],
+    confirmedBy: [],
   },
-  // Bea marked this one completed, so Alex can try Confirm and Dispute. This credit is in wallet.ts's escrow too.
+  // Settling, and Bea has already pressed Confirm now, so Alex's Confirm now settles it at once.
+  // This credit is in wallet.ts's escrow too.
   {
     id: 'session-bea-review',
     swapType: 'one_way',
@@ -106,12 +114,12 @@ export const mockSessions: Session[] = [
     returnSkillId: null,
     startsAt: fromNow({ hours: -5 }),
     durationMinutes: 60,
-    status: 'pending_learner_review',
+    status: 'awaiting_settlement',
     meetingUrl: meeting('bea-review'),
     attendance: [stayed('user-bea', fromNow({ hours: -5 }), 60), stayed(ALEX, fromNow({ hours: -5 }), 58)],
-    teacherMarkedAt: fromNow({ hours: -4 }),
+    confirmedBy: ['user-bea'],
   },
-  // Alex reported a no-show 4 hours ago. Hana joined for 8 minutes, so when the 24-hour check ends it goes to an admin.
+  // Alex raised a concern 4 hours ago: Hana joined for 8 minutes. An admin decides from the records.
   {
     id: 'session-hana-noshow',
     swapType: 'one_way',
@@ -124,7 +132,8 @@ export const mockSessions: Session[] = [
     status: 'disputed',
     meetingUrl: meeting('hana-noshow'),
     attendance: [stayed(ALEX, fromNow({ hours: -6 }), 20), stayed('user-hana', fromNow({ hours: -6 }), 8)],
-    dispute: { raisedBy: ALEX, cause: 'no_show', reason: null, raisedAt: fromNow({ hours: -4 }) },
+    confirmedBy: [],
+    dispute: { raisedBy: ALEX, reason: 'Hana left after eight minutes and never came back.', raisedAt: fromNow({ hours: -4 }) },
   },
   {
     id: 'session-gus-cancelled',
@@ -138,6 +147,7 @@ export const mockSessions: Session[] = [
     status: 'cancelled',
     meetingUrl: null,
     attendance: [],
+    confirmedBy: [],
   },
   ...[
     { id: 'hana', teacherId: ALEX, learnerId: 'user-hana', skillId: 'skill-python', days: -24 },
@@ -155,6 +165,7 @@ export const mockSessions: Session[] = [
     status: 'completed',
     meetingUrl: meeting(`${id}-done`),
     attendance: [stayed(people.teacherId, fromNow({ days }), 60), stayed(people.learnerId, fromNow({ days }), 60)],
+    confirmedBy: [],
   })),
   {
     id: 'session-bea-done',
@@ -168,5 +179,6 @@ export const mockSessions: Session[] = [
     status: 'completed',
     meetingUrl: meeting('bea-done'),
     attendance: [stayed('user-bea', fromNow({ days: -5 }), 60), stayed(ALEX, fromNow({ days: -5 }), 60)],
+    confirmedBy: [],
   },
 ]

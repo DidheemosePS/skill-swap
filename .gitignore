@@ -1,1 +1,10 @@
 .DS_Store
+
+# Backend
+backend/.env
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Design-check output (screenshots, Chrome profiles)
+.taste-skill/

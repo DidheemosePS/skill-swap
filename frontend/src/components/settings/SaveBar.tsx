@@ -14,7 +14,7 @@ interface SaveBarProps {
 // Pinned to the bottom while there's something to save, so the action is never off screen.
 export default function SaveBar({ isDirty, isSaving, errors, tabLabels, onSave, onDiscard, onGoToTab }: SaveBarProps) {
   return (
-    <div aria-live="polite" className="fixed inset-x-0 bottom-0 z-20 lg:left-(--sidebar-w)">
+    <div aria-live="polite" className="fixed inset-x-0 bottom-0 z-20">
       {isDirty && (
         <div className="border-t border-line bg-surface shadow-[0_-4px_16px_rgb(0_0_0/0.06)]">
           <div className="mx-auto flex max-w-page flex-col gap-3 px-4 py-3 sm:px-6 sm:flex-row lg:px-10 sm:items-center sm:justify-between">

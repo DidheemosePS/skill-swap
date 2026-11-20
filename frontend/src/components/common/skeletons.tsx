@@ -15,7 +15,7 @@ export const PageTitle = ({ children }: { children: string }) => <p aria-hidden=
 // A person card: Explore members and dashboard matches.
 export function PersonCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-2xl bg-card p-5">
+    <div className="flex flex-col rounded-2xl border border-line bg-card p-5">
       <div className="flex items-center gap-3.5">
         <Circle size="lg" />
         <div className="min-w-0 flex-1 space-y-2">
@@ -61,7 +61,7 @@ export function RowsSkeleton({ count = 3, ...row }: { count?: number; avatar?: '
 // A session card on Sessions: date block, the swap pair, title and line, action.
 export function AgendaCardSkeleton() {
   return (
-    <div className="flex items-center gap-5 rounded-2xl bg-card px-4 py-4 sm:px-5">
+    <div className="flex items-center gap-5 rounded-2xl border border-line bg-card px-4 py-4 sm:px-5">
       <div className="flex w-12 flex-col items-center gap-1.5">
         <Skeleton className="h-2.5 w-8" />
         <Skeleton className="h-6 w-7" />
@@ -86,19 +86,6 @@ export function BalanceCardSkeleton() {
       <div className="mt-4 h-5 w-48 rounded-md bg-white/15" />
       <div className="mt-6 h-2 rounded-full bg-white/15" />
       <div className="mt-2 flex justify-between"><div className="h-4 w-16 rounded-md bg-white/15" /><div className="h-4 w-16 rounded-md bg-white/15" /></div>
-    </div>
-  )
-}
-
-// Two big figures and the hours bar: the dashboard's "Your time".
-export function FiguresSkeleton() {
-  return (
-    <div className="mt-4 space-y-5">
-      <div className="flex gap-8">
-        <div className="space-y-2"><Skeleton className="h-9 w-8" /><Skeleton className="h-3.5 w-24" /></div>
-        <div className="space-y-2"><Skeleton className="h-9 w-8" /><Skeleton className="h-3.5 w-24" /></div>
-      </div>
-      <Skeleton className="h-2 rounded-full" />
     </div>
   )
 }

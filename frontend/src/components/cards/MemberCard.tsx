@@ -36,7 +36,7 @@ export default function MemberCard({ member, search, onBook }: MemberCardProps) 
   const theirs = pick(user.teachSkills, teachesYou, search)
 
   return (
-    <li className="flex flex-col rounded-2xl bg-card p-5">
+    <li className="flex flex-col rounded-2xl border border-line bg-card p-5">
       <Link to={`/user/${user.id}`} className="group -m-1.5 flex items-center gap-3.5 rounded-xl p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-accent">
         <Avatar name={user.name} url={user.avatarUrl} size="lg" />
         <div className="min-w-0">

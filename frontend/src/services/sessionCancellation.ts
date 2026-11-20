@@ -1,10 +1,10 @@
 import { CURRENT_USER_ID, mockMessages, mockSessions, mockTransactions } from '../data/mockData'
 import type { Message, Session, SwapRequestMessage } from '../types'
-import { canOfferAlternatives } from '../utils/sessions'
+import { canOfferAlternatives, isLateCancel } from '../utils/sessions'
 import { getCustomSlotError } from '../utils/timeSlots'
 import { emitChatEvent } from './chatSocket'
 import { mockRequest } from './mockClient'
-import { getPartnerId, runSessionChecks, SessionClosedError } from './sessionActions'
+import { getPartnerId, payTeacher, runSessionChecks, SessionClosedError } from './sessionActions'
 import { getSlotStatus, holdRequestTimes, releaseRequestHolds } from './slotService'
 import { confirmRequest, isRequestMessage, publish, refundIfPaid } from './swapRequestActions'
 import { getOrCreateConversation, getRequestExpiry, SlotTakenError } from './swapRequestService'
@@ -46,7 +46,7 @@ function offerAlternatives(session: Session, actorId: string, recipientId: strin
     },
   }
   mockMessages.push(message)
-  mockSessions.push({ ...session, id: sessionId, startsAt: alternatives[0], status: 'pending', meetingUrl: null, attendance: [], cancellation: undefined })
+  mockSessions.push({ ...session, id: sessionId, startsAt: alternatives[0], status: 'pending', meetingUrl: null, attendance: [], confirmedBy: [], cancellation: undefined })
   holdRequestTimes(message.swapRequest, Date.now())
   // The escrowed credit follows the new request, so accepting doesn't charge it twice.
   const booking = mockTransactions.find((item) => item.sessionId === session.id && item.status === 'in_escrow')
@@ -60,8 +60,11 @@ export function cancelSessionAs(sessionId: string, actorId: string, reason: stri
   const session = mockSessions.find((item) => item.id === sessionId)
   if (!session || session.status !== 'confirmed' || Date.parse(session.startsAt) <= Date.now()) throw new SessionClosedError()
   const otherId = session.teacherId === actorId ? session.learnerId : session.teacherId
+  // After the cutoff a cancel is late: it counts as an absence for the canceller, and a learner's credit goes to the
+  // teacher. Offering new times carries the booking forward instead, so it isn't marked late.
+  const late = alternatives.length === 0 && isLateCancel(session.startsAt, Date.now())
   session.status = 'cancelled'
-  session.cancellation = { cancelledBy: actorId, reason, cancelledAt: now }
+  session.cancellation = { cancelledBy: actorId, reason, cancelledAt: now, late }
 
   const requestMessage = mockMessages.filter(isRequestMessage).find((item) => item.swapRequest.sessionId === sessionId)
   if (requestMessage) {
@@ -81,7 +84,9 @@ export function cancelSessionAs(sessionId: string, actorId: string, reason: stri
   }
 
   if (alternatives.length === 0) {
-    refundIfPaid({ ...session, sessionId })
+    // A learner who cancels late gives the credit to the teacher; any other cancel refunds the learner.
+    if (late && actorId === session.learnerId) payTeacher(session, getPartnerId(session))
+    else refundIfPaid({ ...session, sessionId })
     return null
   }
   const offer = offerAlternatives(session, actorId, otherId, alternatives, reason, now)

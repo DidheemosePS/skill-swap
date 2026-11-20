@@ -4,9 +4,11 @@ Every endpoint the frontend calls. Requests and responses use snake_case; `src/s
 
 The services currently return mock data through `src/services/mockClient.ts`. Set `VITE_MOCK_FAIL` to a comma-separated list of feature names to simulate a failure.
 
+The public landing page (`/`) calls no endpoints: its "Try a swap" demo runs entirely on fixtures in `src/data/landingDemo.ts`, and it only reads the already-loaded `AuthProvider` state to redirect signed-in members.
+
 ## Auth
 
-The session is an HTTP-only cookie set by the OAuth callback; no token is handled in JavaScript. Every endpoint below and in the rest of this map identifies the member from that session, never from a user ID in the request. Any request without a valid session responds `401`. The frontend handles `401` from `GET /users/me` by showing the sign-in panel (`AuthGate`) at the current URL; there is no separate sign-in route.
+The session is an HTTP-only cookie set by the OAuth callback; no token is handled in JavaScript. Every endpoint below and in the rest of this map identifies the member from that session, never from a user ID in the request. Any request without a valid session responds `401`. The frontend handles `401` from `GET /users/me` by redirecting to `/login` (`AuthGate`), carrying the wanted URL in router state so `LoginPage` returns the member there after sign-in; a signed-in visit to `/login` is forwarded without showing the form.
 
 ### `GET /users/me` (`fetchCurrentUser`, mock feature `me`)
 
@@ -16,7 +18,7 @@ Loaded once by `AuthProvider` on start-up, and again after saving settings. Resp
 { "id": "user-alex", "name": "Alex Sample", "avatar_url": null, "is_onboarded": true }
 ```
 
-`AuthGate` sends members with `is_onboarded: false` to `/onboarding` from every route, and sends onboarded members away from `/onboarding` to `/dashboard`. In the mock, `VITE_MOCK_EMPTY=me` starts Alex as not onboarded so the onboarding flow can be tried.
+`AuthGate` sends members with `is_onboarded: false` to `/onboarding` from every route, and sends onboarded members away from `/onboarding` to `/dashboard`. In the mock, `VITE_MOCK_EMPTY=me` starts Alex as not onboarded so the onboarding flow can be tried. The mock session persists in `localStorage` (`mock-session`) and a first visit starts signed out, so `/` shows the landing page the way a real visitor sees it; sign in once from any CTA and it sticks until Sign out.
 
 ### `GET /auth/{provider}/login?return_to=...` (`signIn`, mock feature `sign-in`)
 
@@ -76,7 +78,6 @@ Returns confirmed sessions that haven't ended, soonest first.
   "starts_at": "2026-11-07T18:00:00Z",
   "duration_minutes": 60,
   "status": "confirmed",
-  "meeting_url": "https://example.com/meet/bea-soon",
   "attendance": [],
   "partner": { "id": "user-bea", "name": "Bea Example", "avatar_url": null },
   "skill_name": "Python",
@@ -104,7 +105,7 @@ Open requests in either direction, for the Sessions agenda, which shows each one
 
 ### `GET /sessions` (`fetchMySessions`, mock feature `my-sessions`)
 
-All of the current user's sessions except `pending` ones. Each has the fields shown above, plus the following. The client sorts them into the page's sections (Settle, Coming up, Waiting on others, History) and works out each history row's credit change (`+1` taught, `−1` learned, `0` for a free swap, a cancellation or a refund after the teacher was absent).
+All of the current user's sessions except `pending` ones. Each has the fields shown above, plus the following. The client sorts them into the page's sections (Settling, Under review, Coming up, Past) and works out each history row's credit change (`+1` taught, `−1` learned, `0` for a free swap, a cancellation or a refund after the teacher was absent).
 
 ```json
 {
@@ -114,77 +115,76 @@ All of the current user's sessions except `pending` ones. Each has the fields sh
   "attendance": [
     { "user_id": "user-alex", "joined_at": "2026-11-07T09:59:00Z", "left_at": "2026-11-07T11:00:00Z", "duration_minutes": 60 }
   ],
-  "teacher_marked_at": "2026-11-07T10:00:00Z",
-  "no_show": { "absent_id": "user-dina", "reported_by": "user-alex" },
-  "dispute": { "raised_by": "user-alex", "cause": "no_show", "reason": null, "raised_at": "2026-11-07T10:00:00Z" },
-  "cancellation": { "cancelled_by": "user-alex", "reason": "...", "cancelled_at": "2026-11-07T10:00:00Z" }
+  "expected_outcome": "completed",
+  "settles_at": "2026-11-08T11:00:00Z",
+  "confirmed_by": ["user-dina"],
+  "no_show": { "absent_id": "user-dina" },
+  "dispute": { "raised_by": "user-alex", "reason": "Dina joined but left after ten minutes.", "raised_at": "2026-11-07T11:30:00Z" },
+  "cancellation": { "cancelled_by": "user-alex", "reason": "...", "cancelled_at": "2026-11-07T10:00:00Z", "late": false }
 }
 ```
 
-`status` also includes `awaiting_settlement`, `pending_learner_review`, `completed`, `disputed`, `no_show_confirmed` and `cancelled`. The backend moves `confirmed` to `awaiting_settlement` when the end time passes.
+`status` also includes `awaiting_settlement`, `completed`, `disputed`, `no_show_confirmed`, `mutual_no_show` and `cancelled`. `teacher_id` and `learner_id` aren't stored: the backend fills them from the request (the recipient teaches, the requester learns).
 
-- `attendance` has one record per member. `left_at` is `null` while they're in the meeting, and `duration_minutes` is their total time in it.
-- `no_show` is set with `no_show_confirmed`, by the 24-hour no-show job or by an admin. `reported_by` is `null` when nobody reported it.
-- `dispute.cause` is `no_show`, `completion` (the learner disputed a teacher's marking) or `no_outcome` (the 72-hour job). `raised_by` is `null` for `no_outcome`. `reason` is set only for `completion`.
+- `attendance` has one record per member, built from the video provider's webhooks. `left_at` is `null` while they're in the call, and `duration_minutes` is their total time in it.
+- `expected_outcome` is set while `awaiting_settlement`: `completed`, `no_show_teacher`, `no_show_learner` or `mutual_no_show`, worked out from `attendance` by the rules below, with `settles_at` (the end time plus 24 hours). The Settling cards show it.
+- `confirmed_by` lists the members who pressed `Confirm now` while `awaiting_settlement`; the card shows "You confirmed · waiting on Dina" once the current user is in it.
+- `no_show` is set with `no_show_confirmed`: `{ "absent_id": ... }`.
+- `dispute` is set when a member raised a concern: `{ "raised_by", "reason", "raised_at" }`.
+- `cancellation` is `{ "cancelled_by", "reason", "cancelled_at", "late": true }`; `late` is true after the 2-hour cutoff.
 
-#### Outcome rules
+#### Outcome rules (automatic, from attendance only)
 
-A one-way credit moves automatically only when:
+At the scheduled end, a session moves from `confirmed` to `awaiting_settlement`. A member counts as present if the provider recorded them in the call at any time before the scheduled end, so joining late still counts.
 
-- **the learner confirms:** through `/complete`, either on its own or after the teacher's marking, or
-- **the review window lapses:** the teacher marked completed and 48 hours pass without a dispute, or
-- **a no-show report is verified:** 24 hours after the report, the reported member has no attendance record at all.
+| Present | Outcome | One-way credit | Reliability |
+|---|---|---|---|
+| both | `completed` | released to the teacher | none |
+| learner only | `no_show_confirmed`, teacher absent | refunded to the learner (`escrow_refund`) | teacher marked absent |
+| teacher only | `no_show_confirmed`, learner absent | released to the teacher | learner marked absent |
+| neither | `mutual_no_show` | refunded to the learner | both marked absent |
 
-Everything else becomes `disputed`, the credit stays in escrow, and an admin decides. This covers a learner's dispute, a session nobody marked within 72 hours, and a no-show report where the reported member joined the meeting at all. Attendance records decide an outcome by themselves only in that one clear case, a missing record; any time in the meeting is left for an admin to judge.
+A two-way swap moves no credit, but the same outcomes and absence marks apply. Members never report each other. The credit moves when the 24-hour concern window closes, or at once if both members confirm.
 
 #### Scheduled backend jobs
 
-- `pending_learner_review`, 48 hours after `teacher_marked_at`, with no dispute: set `completed` and release the credit to the teacher.
-- `awaiting_settlement`, 72 hours after the end time, with no outcome marked: set `disputed` with `cause: "no_outcome"`.
-- `disputed` with `cause: "no_show"`, 24 hours after `dispute.raised_at`: if the reported member has no attendance record, set `no_show_confirmed` with `no_show: { absent_id, reported_by }`. An absent teacher means the learner's credit is refunded (`escrow_refund`); an absent learner means it is released to the teacher. If they have a record, leave it `disputed` for an admin. The client shows a countdown to this time from `raised_at`, so no extra field is needed.
+- `pending` request whose `expires_at` has passed: status `expired`, holds released, one-way credit refunded, and a `message` event to both members.
+- `confirmed` session past its scheduled end: status `awaiting_settlement`.
+- `awaiting_settlement`, 24 hours after the scheduled end, with no concern raised: apply the outcome table above.
+
+Each job is a conditional `UPDATE ... WHERE status = ...`, so running it twice does nothing extra.
+
+### `GET /sessions/{id}/room` (`fetchSessionRoom`, mock feature `room`)
+
+Not wired yet: the Session Room page (`/sessions/:id/room`, Daily embed) is a follow-up, and `fetchSessionRoom` doesn't exist in the frontend. Until then, Join opens `meeting_url` in a new tab and the browser reports no attendance.
+
+Members of the session only (`403` otherwise). Available from 10 minutes before the start until the scheduled end (`409` otherwise, with `opens_at`). Response `200`: `{ "room_url": "https://<domain>.daily.co/<room>", "token": "...", "ends_at": "2026-11-07T19:00:00Z" }`. The token is a Daily meeting token for this member and this room, expiring at the scheduled end. The backend creates the room when the request is accepted.
 
 ### `POST /sessions/{id}/complete` (`completeSession`, mock feature `session-action`)
 
-The caller decides the result, so the backend must take it from the auth token. No body. Response `200`: the updated session.
+Either member, while `awaiting_settlement` (`409` otherwise). Records that this member confirms the outcome the attendance shows. Once both have confirmed, the session settles at once instead of waiting for the 24-hour window. No body. Response `200`: the updated session.
 
-- **One-way learner, or either member of a two-way swap:** allowed while `awaiting_settlement`. The learner can also use it while `pending_learner_review`, to confirm. Status `completed`, and a one-way credit is released to the teacher. Updates both members' hours and completed session counts.
-- **One-way teacher:** allowed only while `awaiting_settlement` (`409` otherwise). Status `pending_learner_review` and sets `teacher_marked_at`. No credit moves. Sends the learner a notification and a `session_updated` socket event.
+### `POST /sessions/{id}/concern` (`raiseConcern`, mock feature `session-action`)
 
-### `POST /sessions/{id}/report-absent` (`reportNoShow`, mock feature `session-action`)
-
-Either member, while `awaiting_settlement` (`409` otherwise). Names the other member as absent. Status `disputed` with `cause: "no_show"`, and the credit stays in escrow while the 24-hour check runs against the attendance records (see Scheduled backend jobs). No body. Response `200`: the updated session.
-
-### `POST /sessions/{id}/dispute` (`disputeCompletion`, mock feature `session-action`)
-
-Learner only (`403` otherwise), while `pending_learner_review` and within 48 hours of `teacher_marked_at` (`409` otherwise). Status `disputed` with `cause: "completion"`, and the credit stays in escrow until an admin decides. Request: `{ "reason": "Required, up to 200 characters" }`. Response `200`: the updated session. The admin endpoint that settles a dispute isn't defined yet.
+Either member, while `awaiting_settlement` (`409` otherwise). Request: `{ "reason": "Required, up to 200 characters" }`. Status `disputed`; the credit stays in escrow until an admin decides. Response `200`: the updated session. The admin endpoint that settles a concern isn't defined yet.
 
 ### `POST /sessions/{id}/cancel` (`cancelSession`, mock feature `session-action`)
 
-Only while `confirmed` and before the start time, otherwise `409`.
+Only while `confirmed` and before the start time, otherwise `409`. Up to 2 hours before the start, a cancel is free: a one-way credit is refunded. After that cutoff it's a late cancel: if the learner cancels, the credit is released to the teacher; if the teacher cancels, the learner is refunded and the teacher gets a late-cancel mark. A two-way late cancel moves no credit and marks the canceller. A late cancel counts as one absence for `is_reliable`. The frontend states the outcome in the confirm dialog before the member cancels.
 
 ```json
 { "reason": "Required, up to 200 characters", "alternative_slots": ["2026-11-12T14:00:00Z"] }
 ```
 
-`alternative_slots` holds up to 3 times, following the same rules as a counter, and returns `403` if the caller is the learner in a one-way swap. Session and request become `cancelled`, and holds are released. Without alternatives, a one-way credit is refunded. With them, a new pending request and session are created in the same thread, the credit moves to them in escrow, and the refund happens only if that request closes without being accepted. Response `200`: the updated session.
+`alternative_slots` holds up to 3 times, following the same rules as a counter, and returns `403` if the caller is the learner in a one-way swap. Session and request become `cancelled`, and holds are released. Without alternatives, a one-way credit follows the cutoff rule above. With them, the cancel is never late, a new pending request and session are created in the same thread, the credit moves to them in escrow, and the refund happens only if that request closes without being accepted. Response `200`: the updated session.
 
 ### `POST /sessions/{id}/review` (`submitReview`, mock feature `review`)
 
 Only for a `completed` session the caller attended, once per member, otherwise `409`. Request: `{ "rating": 5, "comment": "Optional, up to 500 characters" }`, with `rating` a whole number from 1 to 5. Response `201`: the created review.
 
-### `POST /sessions/{id}/attendance` (`logAttendance`, mock feature `attendance`)
+### `POST /webhooks/daily` (backend only, no frontend call)
 
-Records the current user clicking Join Meeting. It creates their attendance record with `left_at: null` if they don't have one yet. Only the first call per user sets `joined_at`. No request body. Response `200`: `{ "joined_at": "2026-11-07T17:52:00Z" }`
-
-### `POST /webhooks/meeting` (backend only, no frontend call)
-
-Called by the video provider, and verified by its signature, not by a user token.
-
-```json
-{ "session_id": "session-bea-soon", "user_id": "user-bea", "event": "joined", "at": "2026-11-07T17:59:00Z" }
-```
-
-`event` is `joined` or `left`. The backend keeps one record per member: the first `joined` sets `joined_at`, each `left` sets `left_at`, and `duration_minutes` adds up every joined-to-left stretch, so a rejoin counts. Anyone still in the meeting at the end time is given `left_at` equal to the end time. These records are shown to members and to the admin reviewing a dispute.
+Called by Daily for `participant.joined` and `participant.left`, and verified by Daily's webhook signature, not by a user token. The room name identifies the session, and the meeting token's user ID identifies the member. Each joined-to-left stretch is one attendance row, so a rejoin adds a row; anyone still in the call at the scheduled end is given `left_at` equal to the end time. These records decide the outcome and are shown to members and to the admin reviewing a concern.
 
 ### `GET /wallet` (`fetchWallet`, mock feature `wallet`)
 
@@ -238,13 +238,13 @@ Response `200`: `[{ "starts_at": "2026-11-09T14:00:00Z", "status": "on_hold" }]`
 
 Returns the status of one time, including one outside the member's weekly hours. `ignore_request_id` is optional, and leaves that request's own holds out of the check. Response `200`: `{ "status": "open" }`
 
-**Hold rules:** sending a request holds all its proposed times, and each hold expires after 48 hours, or 1 hour before the session if that comes first. On accept, the chosen time becomes `booked` and the rest are released. A counter releases the old times and holds the new ones. Decline, cancel and expiry release all times, and refund a one-way credit.
+**Hold rules:** sending a request holds all its proposed times, and each hold expires after 48 hours, or 2 hours before the session (the cancellation cutoff) if that comes first, so a request can never be accepted inside the cutoff. On accept, the chosen time becomes `booked` and the rest are released. A counter releases the old times and holds the new ones. Decline, cancel and expiry release all times, and refund a one-way credit.
 
 `next_session_at` on matches and members is the soonest confirmed session with that person, or `null`.
 
 ### `POST /swap-requests` (`createSwapRequest`, mock feature `swap-request`)
 
-Creates a pending request and session, and opens or reuses the chat with the peer. A one-way request moves 1 credit into escrow.
+Creates a pending request and opens or reuses the chat with the peer. A one-way request moves 1 credit into escrow. The session is created only when the request is accepted, so `session_id` is `null` until then.
 
 ```json
 {
@@ -257,9 +257,9 @@ Creates a pending request and session, and opens or reuses the chat with the pee
 }
 ```
 
-Validation: 1 to 3 future slots; a one-way request needs `wallet.credits >= 1`. Respond `409` if any slot is no longer `open`, which also settles two members sending at the same moment. Lock the times in the same transaction as this check.
+Validation: 1 to 3 slots, each at least 2 hours away (the cancellation cutoff, so every session has a free-cancel window); a one-way request needs `wallet.credits >= 1`. Respond `409` if any slot is no longer `open`, which also settles two members sending at the same moment. Lock the times in the same transaction as this check.
 
-Response `201`: `{ "conversation_id": "conv-faye", "swap_request": { "id": "...", "status": "pending", "session_id": "..." } }`
+Response `201`: `{ "conversation_id": "conv-faye", "swap_request": { "id": "...", "status": "pending", "session_id": null } }`
 
 ## Explore
 
@@ -307,7 +307,7 @@ Response `200`:
 
 ### `GET /users/{id}` (`fetchMemberProfile`, mock feature `profile`)
 
-`swap_type`, `teaches_you`, `learns_from_you` and `credit_cost` are relative to the current user. For a one-way offer, `teaches_you` lists every skill the member teaches, starting with those the current user wants to learn. `reviews` holds the most recent reviews, newest first. `next_session` is the soonest confirmed session with this member that hasn't ended (`{ "id", "starts_at", "duration_minutes", "meeting_url" }`, or `null`), so the profile can count down to it and offer Join. `viewer_availability` is the current user's own weekly hours (same shape as `peer.availability`, `null` on their own profile), so the page can show when both are free. The mock treats a missing member as `null`; the real service should map `404` to `null`.
+`swap_type`, `teaches_you`, `learns_from_you` and `credit_cost` are relative to the current user. For a one-way offer, `teaches_you` lists every skill the member teaches, starting with those the current user wants to learn. `reviews` holds the most recent reviews, newest first. `next_session` is the soonest confirmed session with this member that hasn't ended (`{ "id", "starts_at", "duration_minutes" }`, or `null`), so the profile can count down to it and offer Join, which opens the session room. `viewer_availability` is the current user's own weekly hours (same shape as `peer.availability`, `null` on their own profile), so the page can show when both are free. The mock treats a missing member as `null`; the real service should map `404` to `null`.
 
 Response `200` (or `404` if the member doesn't exist):
 
@@ -404,7 +404,6 @@ Oldest first. `kind` is `text` (with `body`) or `swap_request` (with `swap_reque
     "cancel_reason": null,
     "has_alternatives": false,
     "expires_at": "2026-11-09T09:00:00Z",
-    "meeting_url": null,
     "session_id": "session-1"
   }
 }]
@@ -416,7 +415,7 @@ Oldest first. `kind` is `text` (with `body`) or `swap_request` (with `swap_reque
 
 Request: `{ "kind": "text", "body": "Hello" }`. Text is limited to 4000 characters. Response `201`: the created message.
 
-**Chat access:** return `403` unless the two members have a session with status `confirmed`, `awaiting_settlement`, `pending_learner_review`, `disputed` or `completed`. A cancelled session doesn't count, so cancelling a pair's only session locks their chat, and past messages stay readable. The frontend hides the message box using the same rule (`getChatAccess`), but only the server can enforce it.
+**Chat access:** return `403` unless the two members have a session with status `confirmed`, `awaiting_settlement`, `disputed` or `completed`. A cancelled session doesn't count, so cancelling a pair's only session locks their chat, and past messages stay readable. The frontend hides the message box using the same rule (`getChatAccess`), but only the server can enforce it.
 
 ### `POST /conversations/{id}/read` (`markConversationRead`, mock feature `read`)
 
@@ -428,8 +427,8 @@ Each returns `200` with the updated message. Return `409` if the request is no l
 
 | Endpoint | Function | Body | Who | Effect |
 |---|---|---|---|---|
-| `POST /swap-requests/{id}/accept` | `acceptSwapRequest` | `{ "starts_at": "..." }` | Member who didn't propose last | Status `confirmed`; generates `meeting_url`; session confirmed; chosen time `booked`; other holds released; credit stays in escrow |
-| `POST /swap-requests/{id}/counter` | `counterSwapRequest` | `{ "proposed_slots": ["..."], "counter_note": "Optional, up to 200 characters, or null" }` | Member who didn't propose last | 1 to 3 times, inside or outside the other member's weekly hours. Each must be 1 hour to 30 days away and clash with neither member's sessions or holds. Old holds released and new holds placed; expiry restarts; replaces any earlier `counter_note` |
+| `POST /swap-requests/{id}/accept` | `acceptSwapRequest` | `{ "starts_at": "..." }` | Member who didn't propose last | Status `confirmed`; creates the session and its Daily room; chosen time `booked`; other holds released; credit stays in escrow |
+| `POST /swap-requests/{id}/counter` | `counterSwapRequest` | `{ "proposed_slots": ["..."], "counter_note": "Optional, up to 200 characters, or null" }` | Member who didn't propose last | 1 to 3 times, inside or outside the other member's weekly hours. Each must be 2 hours to 30 days away and clash with neither member's sessions or holds. Old holds released and new holds placed; expiry restarts; replaces any earlier `counter_note` |
 | `POST /swap-requests/{id}/decline` | `declineSwapRequest` | None | Member who didn't propose last | Status `declined`; session cancelled; holds released; one-way credit refunded |
 | `POST /swap-requests/{id}/cancel` | `cancelSwapRequest` | None | Member who proposed last | Status `cancelled`; session cancelled; holds released; one-way credit refunded |
 
@@ -442,7 +441,7 @@ Server-to-client events, sent after authenticating the connection. On reconnect,
 ```json
 { "type": "message", "message": { "id": "msg-1", "conversation_id": "conv-cole", "kind": "text", "body": "Hi" } }
 { "type": "read", "conversation_id": "conv-cole" }
-{ "type": "session_updated", "session_id": "session-bea-review", "status": "pending_learner_review" }
+{ "type": "session_updated", "session_id": "session-bea-review", "status": "awaiting_settlement" }
 ```
 
 On `session_updated`, the Sessions page should refetch `GET /sessions` and `GET /wallet`. The mock doesn't send this event yet.
@@ -531,6 +530,6 @@ Signing out is under [Auth](#auth).
 
 Returned on every user/peer object. The server computes it; the client never derives it. It is true only when all three hold across the member's completed sessions:
 
-1. At least 5 completed sessions with an attendance rate of 95% or more (no unexcused teacher or learner no-shows, per attendance logs).
+1. At least 5 completed sessions with an attendance rate of 95% or more (no-shows and late cancellations each count as an absence, per attendance logs).
 2. Average review rating of 4.8 or higher.
 3. Zero attendance (telemetry) disputes ruled against the member in the last 30 days.

@@ -1,4 +1,4 @@
-import type { Session, SessionStatus } from '../types'
+import type { Session, SessionOutcome, SessionStatus } from '../types'
 
 const MINUTE_MS = 60_000
 export const JOIN_WINDOW_MINUTES = 10
@@ -24,22 +24,31 @@ export function formatCountdown(milliseconds: number): string {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`
 }
 
-export const REVIEW_WINDOW_HOURS = 48
-export const AUTO_RESOLVE_HOURS = 72
-export const NO_SHOW_VERIFICATION_HOURS = 24
+const HOUR_MS = 3_600_000
+// Credit moves this long after the scheduled end, unless a concern is raised or both members confirm first.
+export const SETTLE_WINDOW_HOURS = 24
+// Cancelling is free until this long before the start; sessions also can't be booked closer than this.
+export const CANCEL_CUTOFF_HOURS = 2
+export const CANCEL_CUTOFF_MS = CANCEL_CUTOFF_HOURS * HOUR_MS
 
-export const getReviewWindowEndMs = (teacherMarkedAt: string) => Date.parse(teacherMarkedAt) + REVIEW_WINDOW_HOURS * 3_600_000
+export const getSettlesAtMs = (session: Pick<Session, 'startsAt' | 'durationMinutes'>) => getSessionEndMs(session) + SETTLE_WINDOW_HOURS * HOUR_MS
 
-// When a no-show report has been checked against the meeting records.
-export const getVerificationEndMs = (raisedAt: string) => Date.parse(raisedAt) + NO_SHOW_VERIFICATION_HOURS * 3_600_000
+// Joining late still counts: anyone the provider recorded in the call before the scheduled end was present.
+const wasPresent = (session: Pick<Session, 'attendance' | 'startsAt' | 'durationMinutes'>, userId: string) =>
+  session.attendance.some((record) => record.userId === userId && Date.parse(record.joinedAt) < getSessionEndMs(session))
 
-export const getAutoResolveEndMs = (session: Pick<Session, 'startsAt' | 'durationMinutes'>) =>
-  getSessionEndMs(session) + AUTO_RESOLVE_HOURS * 3_600_000
+// The outcome the attendance records show. Members never report each other; this is the whole rule.
+export function getExpectedOutcome(session: Pick<Session, 'attendance' | 'startsAt' | 'durationMinutes' | 'teacherId' | 'learnerId'>): SessionOutcome {
+  const teacher = wasPresent(session, session.teacherId)
+  const learner = wasPresent(session, session.learnerId)
+  if (teacher && learner) return 'completed'
+  if (learner) return 'no_show_teacher'
+  if (teacher) return 'no_show_learner'
+  return 'mutual_no_show'
+}
 
-// A teacher can't pay themselves: only the learner's word releases a one-way credit at once.
-// A two-way swap moves no credit, so either member can close it.
-export const releasesCreditNow = ({ swapType, learnerId }: Pick<Session, 'swapType' | 'learnerId'>, userId: string) =>
-  swapType === 'two_way' || learnerId === userId
+// After the cutoff a cancel is late: it moves the credit and counts as an absence for the canceller.
+export const isLateCancel = (startsAt: string, now: number) => Date.parse(startsAt) - now < CANCEL_CUTOFF_MS
 
 // A confirmed session that has ended needs an outcome, even if the server hasn't said so yet.
 export function getSessionPhase({ status, startsAt, durationMinutes }: Pick<Session, 'status' | 'startsAt' | 'durationMinutes'>, now: number): SessionStatus {
@@ -62,16 +71,18 @@ export function getImminentSession<T extends Pick<Session, 'startsAt' | 'duratio
   )
 }
 
-// What a settled session did to the member's balance, for the history statement: +1 taught, -1 learned,
-// 0 when no credit moved (a free swap, a cancellation, or a refund after the teacher was absent).
-export function getCreditChange({ swapType, status, teacherId, noShow }: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow'>, userId: string): number {
-  if (swapType === 'two_way' || status === 'cancelled') return 0
+// What a settled session did to the member's balance, for the history statement: +1 taught, -1 learned, 0 when
+// no credit moved (a free swap, a free cancel, a refund after the teacher was absent, a teacher's late cancel, or
+// nobody joining). A learner's late cancel still pays the teacher.
+export function getCreditChange({ swapType, status, teacherId, noShow, cancellation }: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow' | 'cancellation'>, userId: string): number {
+  if (swapType === 'two_way' || status === 'mutual_no_show') return 0
+  if (status === 'cancelled' && !(cancellation?.late && cancellation.cancelledBy !== teacherId)) return 0
   if (status === 'no_show_confirmed' && noShow?.absentId === teacherId) return 0
   return teacherId === userId ? 1 : -1
 }
 
 // The statement's totals for the History heading: credits earned and spent across the listed sessions.
-export function getHistoryTotals(sessions: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow'>[], userId: string) {
+export function getHistoryTotals(sessions: Pick<Session, 'swapType' | 'status' | 'teacherId' | 'noShow' | 'cancellation'>[], userId: string) {
   const changes = sessions.map((session) => getCreditChange(session, userId))
   return { earned: changes.filter((n) => n > 0).length, spent: changes.filter((n) => n < 0).length }
 }

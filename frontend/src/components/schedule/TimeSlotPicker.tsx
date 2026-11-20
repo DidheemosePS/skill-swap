@@ -133,7 +133,7 @@ export default function TimeSlotPicker({ slots, selected, max, onToggle, sharedS
         {selected.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-muted tabular-nums">Picked {selected.length} of {max}</span>
-            {[...selected].sort().map((slot) => (
+            {selected.toSorted().map((slot) => (
               <Badge key={slot} label={formatSlotDateTime(slot)} onRemove={() => onToggle(slot)} />
             ))}
           </div>

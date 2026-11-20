@@ -22,7 +22,7 @@ const weeksShareHours = (theirs: WeeklyAvailability, yours: WeeklyAvailability) 
 
 function Panel({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-xl bg-card">
+    <section className="rounded-xl border border-line bg-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-line px-4 py-3 sm:px-5">
         <h2 className="text-base font-medium text-ink">{title}</h2>
         {aside && <span className="text-sm text-muted">{aside}</span>}

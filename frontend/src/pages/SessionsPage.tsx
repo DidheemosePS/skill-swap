@@ -12,22 +12,24 @@ import ReviewModal from '../components/schedule/ReviewModal'
 import SessionAgenda from '../components/schedule/SessionAgenda'
 import SessionsSection from '../components/schedule/SessionsSection'
 import SettleSessionDialogs from '../components/schedule/SettleSessionDialogs'
-import UnderReviewList from '../components/schedule/UnderReviewList'
+import SettlingActions from '../components/schedule/SettlingActions'
+import type { SettleStep } from '../components/schedule/SettlingDrawer'
 import { useCurrentUser } from '../hooks/useAuth'
-import type { SettleMode } from '../hooks/useDashboard'
 import { useSessionsPage } from '../hooks/useSessionsPage'
 import { useWallet } from '../hooks/useWallet'
 import { useChatEvents } from '../hooks/useWebSocket'
 import type { SessionDetail } from '../types'
-import { canOfferAlternatives, getHistoryTotals } from '../utils/sessions'
+import { canOfferAlternatives, getHistoryTotals, isLateCancel } from '../utils/sessions'
 import { SessionsSkeleton } from '../components/common/pageSkeletons'
 import { useToast } from '../hooks/useToast'
 
 // What a cancellation did to credits, said with the outcome, since the row it came from moves to History.
-function cancelledMessage({ partner, swapType, isTeaching }: SessionDetail) {
+// Late, a learner's credit goes to the teacher; a teacher's late cancel still refunds the learner.
+function cancelledMessage({ partner, swapType, isTeaching, startsAt }: SessionDetail, now: number) {
   const first = partner.name.split(' ')[0]
-  const credit = swapType === 'two_way' ? '' : isTeaching ? ` ${first}'s credit went back to them.` : ' Your 1 credit is back.'
-  return `Cancelled your session with ${first}.${credit}`
+  const late = isLateCancel(startsAt, now)
+  const credit = swapType === 'two_way' ? '' : isTeaching ? ` ${first}'s credit went back to them.` : late ? ` Your credit went to ${first}.` : ' Your credit is back.'
+  return `Session cancelled.${credit}${late ? ' It counts as a late cancel.' : ''}`
 }
 
 type Dialog = { kind: 'cancel' | 'reschedule' | 'review'; session: SessionDetail }
@@ -42,7 +44,7 @@ export default function SessionsPage() {
   const { refresh: refreshWallet } = useWallet()
   const page = useSessionsPage()
   const [dialog, setDialog] = useState<Dialog | null>(null)
-  const [settle, setSettle] = useState<{ session: SessionDetail; mode: SettleMode } | null>(null)
+  const [settle, setSettle] = useState<{ session: SessionDetail; step: SettleStep } | null>(null)
   const toast = useToast()
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   // A request accepted elsewhere adds a session here without a reload; the wallet reloads itself on chat events.
@@ -58,7 +60,7 @@ export default function SessionsPage() {
   }
 
   const totals = getHistoryTotals(page.history, myId)
-  const isEmpty = page.hasLoaded && page.requestsSettled && !page.toSettle.length && !page.agenda.length && !page.checking.length && !page.history.length
+  const isEmpty = page.hasLoaded && page.requestsSettled && !page.settling.length && !page.agenda.length && !page.checking.length && !page.history.length
 
   return (
     <>
@@ -68,7 +70,7 @@ export default function SessionsPage() {
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Sessions</h1>
         {page.hasLoaded && (
           <p className="mt-1.5 text-sm text-muted">
-            <span className="figures">{page.toSettle.length}</span> to confirm · <span className="figures">{page.agenda.length}</span> coming up
+            <span className="figures">{page.settling.length}</span> settling · <span className="figures">{page.agenda.length}</span> coming up
           </p>
         )}
         {page.status === 'error' && <div className="mt-6"><AlertBanner message="We couldn't load your sessions." onRetry={page.retry} /></div>}
@@ -84,19 +86,20 @@ export default function SessionsPage() {
         )}
 
 
-        {page.toSettle.length > 0 && (
-          <SessionsSection id="to-confirm" title="To confirm" meta="Your answer settles the credit">
+        {/* Optional moves only: each settles on its own 24 hours after it ends. */}
+        {page.settling.length > 0 && (
+          <SessionsSection id="settling" title="Settling" meta="Credit moves on its own after 24 hours">
             <ul className="grid gap-4 md:grid-cols-2">
-              {page.toSettle.map(({ session, mode }) => {
+              {page.settling.map((session) => {
                 const first = session.partner.name.split(' ')[0]
                 return (
                   <PaperRow
                     key={session.id}
                     person={session.partner}
-                    title={mode === 'confirm' ? `${first} marked your ${session.skillName} session complete` : `Did your ${session.skillName} session with ${first} happen?`}
-                    action={<button type="button" onClick={() => setSettle({ session, mode })} className={getButtonClasses('primary', 'lg:min-h-9 lg:px-4')}>{mode === 'confirm' ? 'Confirm' : 'Did it happen?'}</button>}
+                    title={`${session.skillName} with ${first}`}
+                    action={<SettlingActions iConfirmed={session.confirmedBy.includes(myId)} partnerFirstName={first} onOpen={(step) => setSettle({ session, step })} />}
                   >
-                    <SessionOutcomeNote session={session} phase={mode === 'confirm' ? 'pending_learner_review' : 'awaiting_settlement'} now={page.now} />
+                    <SessionOutcomeNote session={session} now={page.now} />
                   </PaperRow>
                 )
               })}
@@ -104,10 +107,16 @@ export default function SessionsPage() {
           </SessionsSection>
         )}
 
-        {/* Already answered, now with someone else: a notice with a timer, kept apart from the jobs above. */}
+        {/* A concern with an admin: a notice, kept apart from what's settling on its own. */}
         {page.checking.length > 0 && (
-          <SessionsSection id="under-review" title="Under review" meta="Nothing to do. These settle on their own">
-            <UnderReviewList sessions={page.checking} now={page.now} />
+          <SessionsSection id="under-review" title="Under review" meta="Nothing to do. An admin decides">
+            <ul className="grid gap-4 md:grid-cols-2">
+              {page.checking.map((session) => (
+                <PaperRow key={session.id} person={session.partner} title={`${session.skillName} with ${session.partner.name.split(' ')[0]}`}>
+                  <SessionOutcomeNote session={session} now={page.now} />
+                </PaperRow>
+              ))}
+            </ul>
           </SessionsSection>
         )}
 
@@ -131,7 +140,6 @@ export default function SessionsPage() {
           <SessionsSection id="history" title="Past" meta={<><span className="figures">+{totals.earned}</span> earned · <span className="figures">−{totals.spent}</span> spent</>}>
             <HistoryStatement
               sessions={isHistoryOpen ? page.history : page.history.slice(0, HISTORY_SHOWN)}
-              now={page.now}
               onReview={(session) => setDialog({ kind: 'review', session })}
               footer={page.history.length > HISTORY_SHOWN && (
                 <div className="border-t border-line/70 py-1">
@@ -152,14 +160,14 @@ export default function SessionsPage() {
           mode={dialog.kind}
           canOfferTimes={canOfferAlternatives(dialog.session, myId)}
           onClose={() => setDialog(null)}
-          onDone={() => done(dialog.kind === 'cancel' ? cancelledMessage(dialog.session) : `New times sent to ${dialog.session.partner.name.split(' ')[0]}. The old time is free; it's booked again once they pick one.`)}
+          onDone={() => done(dialog.kind === 'cancel' ? cancelledMessage(dialog.session, Date.now()) : `New times sent to ${dialog.session.partner.name.split(' ')[0]}. The old time is free; it's booked again once they pick one.`)}
         />
       )}
       {dialog?.kind === 'review' && (
         <ReviewModal session={dialog.session} onClose={() => setDialog(null)} onSubmitted={() => done(`Thanks. Your review of ${dialog.session.partner.name.split(' ')[0]} is posted.`)} />
       )}
       {/* The same settle-then-rate flow the dashboard and Messages run. */}
-      <SettleSessionDialogs session={settle?.session ?? null} mode={settle?.mode ?? 'resolve'} onClose={() => setSettle(null)} onSettled={done} />
+      <SettleSessionDialogs session={settle?.session ?? null} step={settle?.step ?? 'confirm'} onClose={() => setSettle(null)} onSettled={done} />
     </>
   )
 }

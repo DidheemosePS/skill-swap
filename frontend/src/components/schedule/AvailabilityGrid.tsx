@@ -84,7 +84,7 @@ export default function AvailabilityGrid({ availability, overlay, onPick }: Avai
                 const label = { both: 'Both free', theirs: overlay ? `Only ${overlay.theirName} free` : 'Available', yours: 'Only you free', none: 'Neither free' }[state]
                 const dot = <span aria-hidden="true" className="absolute top-1/2 left-1/2 size-1.5 -translate-1/2 rounded-full bg-white" />
                 return (
-                  <td key={day.id} className={`relative h-6 rounded ${CELL[state]}`}>
+                  <td key={day.id} className={`relative h-11 rounded sm:h-6 ${CELL[state]}`}>
                     {state === 'both' && onPick ? (
                       // The cell is the shortcut: tapping it opens the booking with this hour already picked.
                       <button

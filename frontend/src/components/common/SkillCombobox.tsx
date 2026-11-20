@@ -72,6 +72,8 @@ export default function SkillCombobox({ label, placeholder, skills, blocked, add
       moveHighlight(event.key === 'ArrowDown' ? 1 : -1)
     } else if (event.key === 'Enter') {
       event.preventDefault()
+      // While an input method is composing, Enter confirms the characters, not the highlighted skill (229: Safari).
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return
       if (active) select(active)
       else setIsOpen(true)
     } else if (event.key === 'Escape') {

@@ -61,13 +61,16 @@ export default function MessagesPage() {
     <>
       <title>Messages · Skill Swap</title>
       <AppNavbar />
-      <main id="main" tabIndex={-1} className={`outline-none grid ${hidesTabs ? 'h-[calc(100dvh-4.0625rem)]' : 'h-[calc(100dvh-8.0625rem-env(safe-area-inset-bottom))]'} md:h-[calc(100dvh-4.0625rem)] lg:h-dvh lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]`}>
+      {/* Phones get the full-screen chat; from md the list and thread sit in the same centred column and side
+          margins as every other page, framed as one bordered panel (padding counts inside the fixed height). */}
+      <main id="main" tabIndex={-1} className={`outline-none grid ${hidesTabs ? 'h-[calc(100dvh-4rem)]' : 'h-[calc(100dvh-8.0625rem-env(safe-area-inset-bottom))]'} md:mx-auto md:h-[calc(100dvh-4rem)] md:w-full md:max-w-page md:px-6 md:py-6 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] lg:px-10`}>
         {/* On small screens the list and the thread take turns filling the page. */}
-        <section aria-label="Conversations" className={`min-h-0 overflow-y-auto bg-surface lg:block lg:border-r lg:border-line ${selectedId ? 'hidden' : 'block'}`}>
+        <section aria-label="Conversations" className={`min-h-0 overflow-y-auto bg-surface md:rounded-2xl md:border md:border-line lg:block lg:rounded-r-none ${selectedId ? 'hidden' : 'block'}`}>
           {/* The thread's own heading is the h1 when one is open; the list keeps an h2 on large screens. */}
           <div className="px-4 pt-5 pb-3">
             {/* One h1 per view: the thread header owns it when a conversation is open. */}
-            {selected ? <h2 className="text-2xl font-semibold text-ink">Messages</h2> : <h1 className="text-2xl font-semibold text-ink">Messages</h1>}
+            {/* The same title size as every other page; only the level changes when a thread owns the h1. */}
+            {selected ? <h2 className="text-3xl font-semibold text-ink sm:text-4xl">Messages</h2> : <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Messages</h1>}
           </div>
           {/* The list comes first in the page, so keyboard users can jump straight to the open thread. */}
           {selected && (
@@ -91,7 +94,7 @@ export default function MessagesPage() {
         </section>
 
         {/* min-w-0 lets the grid track shrink, so a long headline truncates instead of widening the page. */}
-        <section id="thread" tabIndex={-1} aria-label="Chat" className={`min-h-0 min-w-0 flex-col outline-none lg:flex ${selectedId ? 'flex' : 'hidden'}`}>
+        <section id="thread" tabIndex={-1} aria-label="Chat" className={`min-h-0 min-w-0 flex-col outline-none md:overflow-hidden md:rounded-2xl md:border md:border-line lg:flex lg:rounded-l-none lg:border-l-0 ${selectedId ? 'flex' : 'hidden'}`}>
           {socketStatus === 'disconnected' && (
             <p role="status" className="bg-danger-soft px-4 py-2 text-sm text-danger">Reconnecting. New messages may be delayed.</p>
           )}

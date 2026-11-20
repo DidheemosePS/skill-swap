@@ -32,11 +32,12 @@ export default function WalletChip({ credits, heldCredits }: WalletChipProps) {
         aria-expanded={isOpen}
         // Points at the panel only while it exists.
         aria-controls={isOpen ? panelId : undefined}
-        aria-label={credits === null ? (hasFailed ? 'Wallet unavailable' : 'Loading your credits') : `Your credits: ${credits} to spend${heldCredits ? `, ${heldCredits} held` : ''}. What does this mean?`}
+        // Loaded, the visible balance is the name (plus sr-only words), so voice control matches the screen.
+        aria-label={credits === null ? (hasFailed ? 'Wallet unavailable' : 'Loading your credits') : undefined}
         onClick={() => setIsOpen((current) => !current)}
         className="inline-flex min-h-11 items-center rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <span className="figures inline-flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1 text-sm whitespace-nowrap transition-colors hover:bg-canvas">
+        <span className="figures inline-flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1 text-sm whitespace-nowrap text-ink transition-colors hover:bg-canvas">
           {credits === null ? (
             hasFailed ? <span className="font-semibold">Wallet unavailable</span> : <Skeleton className="h-4 w-24" />
           ) : (
@@ -44,10 +45,12 @@ export default function WalletChip({ credits, heldCredits }: WalletChipProps) {
               <span><b className="font-semibold">{credits}</b> {creditWord}</span>
               {heldCredits ? (
                 <>
+                  {' '}
                   <span aria-hidden="true" className="h-4 w-px bg-line" />
                   <span className="font-semibold text-held"><b className="font-semibold">{heldCredits}</b> held</span>
                 </>
               ) : null}
+              <span className="sr-only">what does this mean?</span>
             </>
           )}
         </span>

@@ -26,7 +26,7 @@ export default function DashboardHeader({ firstName, needsCount }: DashboardHead
           {needsCount !== null && <> · {needsCount === 0 ? 'All caught up' : <><span className="figures">{needsCount}</span> {needsCount === 1 ? 'thing' : 'things'} to do</>}</>}
         </p>
       </div>
-      <Link to="/explore" className={getButtonClasses('secondary', 'max-sm:hidden')}>Find a swap</Link>
+      <Link to="/explore" className={getButtonClasses('primary', 'max-sm:hidden')}>Find a swap</Link>
     </div>
   )
 }

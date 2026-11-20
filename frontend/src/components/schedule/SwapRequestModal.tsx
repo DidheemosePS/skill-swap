@@ -78,7 +78,7 @@ export default function SwapRequestModal({ offer, credits, existingSessionAt = n
         skillId,
         returnSkillId,
         note: note.trim() || null,
-        proposedSlots: [...selected].sort(),
+        proposedSlots: selected.toSorted(),
       })
       toast.success(`Request sent to ${firstName}.`)
       if (onSent) return onSent(result)

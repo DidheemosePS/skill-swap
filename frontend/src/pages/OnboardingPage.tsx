@@ -35,13 +35,14 @@ export default function OnboardingPage() {
 
   const sharedSelectorProps = { skills, status, onRetry: retry }
 
+  // One width for every step, so the logo and progress bar never jump sideways between steps.
   return (
-    <main id="main" tabIndex={-1} className={`outline-none mx-auto w-full px-4 py-8 sm:py-12 ${form.step === 3 ? 'max-w-5xl' : 'max-w-2xl'}`}>
+    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl px-4 py-8 outline-none sm:py-12">
       <title>Set up your profile · Skill Swap</title>
       <p className="mb-8"><BrandMark /></p>
       <StepIndicator steps={STEP_LABELS} current={form.step} />
 
-      <h1 ref={headingRef} tabIndex={-1} className="mt-8 text-2xl font-semibold text-balance outline-none sm:text-3xl">
+      <h1 ref={headingRef} tabIndex={-1} className="mt-8 text-3xl font-semibold text-balance outline-none sm:text-4xl">
         {copy.title}
       </h1>
       <p className="mt-2 mb-6 text-muted">{copy.intro}</p>
@@ -74,7 +75,8 @@ export default function OnboardingPage() {
         />
       )}
       {form.step === 3 && (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        // The preview sits under the grid, beside the finish button, instead of widening the step.
+        <div className="grid gap-8">
           <div>
             <AvailabilityPicker selected={form.slots} onSlotChange={form.setSlot} />
             <p className="mt-3 text-sm text-muted">Times shown in {getViewerTimezone()}.</p>
@@ -88,14 +90,15 @@ export default function OnboardingPage() {
               learnSkills={form.learnSkills}
               availabilitySummary={summarizeAvailability(form.slots)}
             />
-            <p className="flex items-center gap-2 rounded-lg bg-success-soft p-4 text-sm font-medium text-success">
-              <GiftIcon />Finish to get 1 free credit
+            <p className="flex items-center gap-2 rounded-lg bg-success-soft p-4 text-sm font-medium text-ink">
+              <span className="text-success"><GiftIcon /></span>Finish to get 1 free credit
             </p>
           </aside>
         </div>
       )}
 
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-line pt-6">
+      {/* On phones the hint takes its own line above the buttons instead of wrapping beside them. */}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
         {form.step > 1 ? (
           <Button variant="secondary" onClick={form.goBack} disabled={form.isSubmitting}>
             Back
@@ -103,20 +106,18 @@ export default function OnboardingPage() {
         ) : (
           <span />
         )}
-        <div className="flex items-center gap-4">
-          <p aria-live="polite" className="text-right text-sm text-muted">
-            {form.canContinue ? '' : copy.hint}
-          </p>
-          {form.step < 3 ? (
-            <Button onClick={form.goNext} disabled={!form.canContinue} className="shrink-0">
-              Next
-            </Button>
-          ) : (
-            <Button onClick={form.submit} disabled={!form.canContinue} isLoading={form.isSubmitting} className="shrink-0">
-              {form.isSubmitting ? 'Finishing setup…' : 'Complete setup'}
-            </Button>
-          )}
-        </div>
+        <p aria-live="polite" className="text-sm text-muted max-sm:order-first max-sm:basis-full sm:ml-auto sm:text-right">
+          {form.canContinue ? '' : copy.hint}
+        </p>
+        {form.step < 3 ? (
+          <Button onClick={form.goNext} disabled={!form.canContinue} className="shrink-0">
+            Next
+          </Button>
+        ) : (
+          <Button onClick={form.submit} disabled={!form.canContinue} isLoading={form.isSubmitting} className="shrink-0">
+            {form.isSubmitting ? 'Finishing setup…' : 'Complete setup'}
+          </Button>
+        )}
       </div>
     </main>
   )

@@ -28,7 +28,7 @@ function SkillGroup({ title, skills }: { title: string; skills: UserSkill[] }) {
 
 export default function SwapCard({ name, avatarUrl, teachSkills, learnSkills, availabilitySummary }: SwapCardProps) {
   return (
-    <article className="space-y-4 rounded-xl bg-card p-5">
+    <article className="space-y-4 rounded-xl border border-line bg-card p-5">
       <div className="flex items-center gap-3">
         <Avatar name={name} url={avatarUrl} />
         <h3 className="font-semibold">{name}</h3>

@@ -38,13 +38,13 @@ export default function Toast({ toast, onDismiss }: { toast: ToastItem; onDismis
       {toast.person ? (
         <span aria-hidden="true" className="shrink-0"><Avatar name={toast.person.name} url={toast.person.avatarUrl} size="xs" /></span>
       ) : toast.tone === 'error' ? (
-        <span aria-hidden="true" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#ff8a73] text-next">
+        <span aria-hidden="true" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-danger-bright text-next">
           <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <path d="M8 4v5M8 12h.01" />
           </svg>
         </span>
       ) : (
-        <span aria-hidden="true" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#5fd08f] text-next">
+        <span aria-hidden="true" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-success-bright text-next">
           <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="m4 8.4 2.6 2.6L12 5.5" />
           </svg>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth, useCurrentUser } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import { connectAccount, disconnectAccount, LastAccountError, PROVIDER_NAMES } from '../../services/settingsService'
@@ -26,6 +27,7 @@ const Mark = ({ provider }: { provider: SocialProvider }) => (
 // Three plain questions: how do I sign in, what do members see, and am I signed in here.
 export default function AccountSection({ accounts, isDirty, onToggle, onAccountsChange }: AccountSectionProps) {
   const { signOut } = useAuth()
+  const navigate = useNavigate()
   const me = useCurrentUser()
   const toast = useToast()
   const [pending, setPending] = useState<string | null>(null)
@@ -124,8 +126,18 @@ export default function AccountSection({ accounts, isDirty, onToggle, onAccounts
             isLoading={pending === 'sign-out'}
             disabled={pending !== null}
             className="lg:min-h-9 lg:px-4"
-            // AuthGate swaps in the sign-in page once this resolves, so no navigation is needed.
-            onClick={() => run('sign-out', signOut, "Couldn't sign you out. Try again.")}
+            // Navigates explicitly so a deliberate sign-out lands on a clean /login,
+            // without AuthGate attaching a return-to for the settings page just left.
+            onClick={() =>
+              run(
+                'sign-out',
+                async () => {
+                  await signOut()
+                  navigate('/login', { replace: true })
+                },
+                "Couldn't sign you out. Try again.",
+              )
+            }
           >
             Sign out
           </Button>

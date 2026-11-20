@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
-import { countLabel, NAV_LINKS } from './navLinks'
+import { countWords, NAV_LINKS } from './navLinks'
 import type { NavCountKey } from './navLinks'
 import NavCount from './NavCount'
 
@@ -23,7 +23,6 @@ export default function BottomTabs({ counts }: { counts: Record<NavCountKey, num
           <NavLink
             key={link.to}
             to={link.to}
-            aria-label={countLabel(link.label, link.countKey, count) ?? link.label}
             className={({ isActive }) =>
               `relative flex h-16 flex-col items-center justify-center gap-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset ${
                 isActive ? 'text-next before:absolute before:inset-x-[22%] before:top-0 before:h-0.75 before:rounded-b before:bg-next' : 'text-muted'
@@ -34,6 +33,8 @@ export default function BottomTabs({ counts }: { counts: Record<NavCountKey, num
             {/* Sits on the icon's top-right corner, where phone tab counts are expected. */}
             <span className="absolute top-1.5 left-[calc(50%+0.25rem)]"><NavCount value={count} /></span>
             {link.label}
+            {/* The visible label leads the spoken name; the badge is aria-hidden, so its meaning is said here. */}
+            {count > 0 && <span className="sr-only"> {countWords(link.countKey, count)}</span>}
           </NavLink>
         )
       })}

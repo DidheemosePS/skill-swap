@@ -43,7 +43,7 @@ export default function MessageStream({ messages: allMessages, outbox, myId, pee
   const messages = allMessages.filter((message) => message.id !== pinnedId)
   const theirIds = messages.filter((message) => message.senderId !== myId && message.kind !== 'swap_request').map((message) => message.id)
   const firstUnreadId = unreadAtOpen > 0 ? theirIds[Math.max(theirIds.length - unreadAtOpen, 0)] : null
-  const lastMineId = [...messages].reverse().find((message) => message.senderId === myId && message.kind !== 'swap_request')?.id
+  const lastMineId = messages.findLast((message) => message.senderId === myId && message.kind !== 'swap_request')?.id
 
   return (
     <>

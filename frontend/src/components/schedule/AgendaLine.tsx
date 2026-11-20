@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useCurrentUser } from '../../hooks/useAuth'
 import type { AgendaItem } from '../../hooks/useSessionsPage'
 import type { SessionDetail } from '../../types'
-import { canOfferAlternatives, formatCountdown } from '../../utils/sessions'
+import { CANCEL_CUTOFF_MS, canOfferAlternatives, formatCountdown, isLateCancel } from '../../utils/sessions'
 import { formatSlotTime } from '../../utils/timeSlots'
 import { getButtonClasses } from '../common/buttonStyles'
 import SwapPair from '../common/SwapPair'
@@ -22,7 +22,8 @@ interface AgendaLineProps extends AgendaActions {
   isImminent: boolean
 }
 
-const quiet = 'rounded font-medium text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent'
+// Quiet, but underlined at rest so Reschedule and Cancel read as actions, not as plain text.
+const quiet = 'rounded font-medium text-muted underline decoration-line-strong underline-offset-2 outline-none hover:text-ink hover:decoration-current focus-visible:ring-2 focus-visible:ring-accent'
 const action = getButtonClasses('secondary', 'lg:min-h-9 lg:px-4')
 
 // One session as a card: date block, the two people, the swap's name, and one action. Requested times are the
@@ -56,6 +57,8 @@ export default function AgendaLine({ item, dayLabel, now, isImminent, onReschedu
             <>Starts in <span className="figures">{Math.max(Math.ceil((Date.parse(item.at) - now) / 60_000), 1)}</span> min</>
           ) : canChange ? (
             <span className="flex flex-wrap gap-x-3">
+              {/* The cutoff is said up front, so a late cancel's cost is never a surprise in the dialog. */}
+              <span>{isLateCancel(item.at, now) ? 'Past the free-cancel time' : <>Free to cancel until <span className="figures">{formatSlotTime(new Date(Date.parse(item.at) - CANCEL_CUTOFF_MS).toISOString())}</span></>}</span>
               {canOfferAlternatives(booked, me.id) && <button type="button" onClick={() => onReschedule(booked)} className={quiet}>Reschedule</button>}
               <button type="button" onClick={() => onCancel(booked)} className={quiet}>Cancel</button>
             </span>

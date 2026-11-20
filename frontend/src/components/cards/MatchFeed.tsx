@@ -48,7 +48,7 @@ export default function MatchFeed({ matches, status, onRetry, onRequest, hasImmi
   return (
     <section aria-labelledby="recommended-heading">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 id="recommended-heading" className="flex items-center gap-0.5 text-xl font-semibold text-ink">
+        <h2 id="recommended-heading" className="flex items-center gap-0.5 font-display text-lg font-semibold text-ink">
           People to swap with
         </h2>
         <div className="flex gap-1" role="group" aria-label="Show">
@@ -62,8 +62,8 @@ export default function MatchFeed({ matches, status, onRetry, onRequest, hasImmi
       {status !== 'error' && shown.length > 0 && (
         <ul className="mt-4 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {shown.map((match) => (
-            <li key={match.id}>
-              <MatchCard match={match} onRequest={onRequest} isPrimary={!hasImminent && match.id === topId} />
+            <li key={match.id} className={shown.length === 1 ? 'md:col-span-2 xl:col-span-3' : ''}>
+              <MatchCard match={match} onRequest={onRequest} isPrimary={!hasImminent && match.id === topId} wide={shown.length === 1} />
             </li>
           ))}
         </ul>

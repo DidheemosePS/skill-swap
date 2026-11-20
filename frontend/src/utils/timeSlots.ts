@@ -1,5 +1,6 @@
 import type { BusyTime, PeerSlot, SlotHold, TimeSlot, Weekday, WeeklyAvailability } from '../types'
 import { getViewerTimezone } from './availability'
+import { CANCEL_CUTOFF_HOURS, CANCEL_CUTOFF_MS } from './sessions'
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -37,7 +38,8 @@ function zonedTimeToMs(wallClockMs: number, timeZone: string): number {
 export function getUpcomingSlots({ timezone, slots }: WeeklyAvailability, now: number, days = 14): string[] {
   const { year, month, day } = getZoneParts(timezone, new Date(now))
   const todayMs = Date.UTC(year, month - 1, day)
-  const earliest = now + HOUR_MS
+  // Nothing inside the cancellation cutoff can be booked, so every session keeps a free-cancel window.
+  const earliest = now + CANCEL_CUTOFF_MS
   const starts: number[] = []
   for (let offset = 0; offset < days; offset += 1) {
     const dateMs = todayMs + offset * DAY_MS
@@ -69,10 +71,10 @@ function overlapsSlot(slotStart: string, range: BusyTime): boolean {
 
 export const getSlotEnd = (startsAt: string) => new Date(Date.parse(startsAt) + HOUR_MS).toISOString()
 
-// A hold lasts 48 hours, or until 1 hour before the session if that comes first, so a silent
-// mentor can't block a time forever and a late answer can't confirm a session about to start.
+// A hold lasts 48 hours, or until the cancellation cutoff before the session if that comes first, so a silent
+// mentor can't block a time forever and a late answer can't book a session with no free-cancel window.
 export function getHoldExpiry(startsAt: string, now: number): string {
-  return new Date(Math.min(now + HOLD_HOURS * HOUR_MS, Date.parse(startsAt) - HOUR_MS)).toISOString()
+  return new Date(Math.min(now + HOLD_HOURS * HOUR_MS, Date.parse(startsAt) - CANCEL_CUTOFF_MS)).toISOString()
 }
 
 export const isHoldActive = ({ expiresAt }: SlotHold, now: number) =>
@@ -95,7 +97,7 @@ const CUSTOM_SLOT_MAX_DAYS = 30
 export function getCustomSlotError(startsAt: string, now: number): string | null {
   const start = Date.parse(startsAt)
   if (Number.isNaN(start)) return 'Please enter a date and time.'
-  if (start < now + HOUR_MS) return 'Please pick a time at least 1 hour from now.'
+  if (start < now + CANCEL_CUTOFF_MS) return `Please pick a time at least ${CANCEL_CUTOFF_HOURS} hours from now.`
   if (start > now + CUSTOM_SLOT_MAX_DAYS * DAY_MS) return `Please pick a time within the next ${CUSTOM_SLOT_MAX_DAYS} days.`
   return null
 }
@@ -105,7 +107,7 @@ const toDateTimeInputValue = (ms: number) =>
   new Date(ms - new Date(ms).getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 
 export const getCustomSlotRange = (now: number) => ({
-  min: toDateTimeInputValue(now + HOUR_MS),
+  min: toDateTimeInputValue(now + CANCEL_CUTOFF_MS),
   max: toDateTimeInputValue(now + CUSTOM_SLOT_MAX_DAYS * DAY_MS),
 })
 

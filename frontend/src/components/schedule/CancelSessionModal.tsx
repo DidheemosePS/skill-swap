@@ -4,6 +4,7 @@ import { SessionClosedError } from '../../services/sessionActions'
 import { cancelSession } from '../../services/sessionCancellation'
 import { SlotTakenError } from '../../services/swapRequestService'
 import type { SessionDetail } from '../../types'
+import { CANCEL_CUTOFF_HOURS, isLateCancel } from '../../utils/sessions'
 import { formatSlotDateTime } from '../../utils/timeSlots'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
@@ -34,14 +35,22 @@ export default function CancelSessionModal({ session, mode, canOfferTimes, onClo
   const alternatives = isOfferingTimes ? proposal.allTimes : []
   const isReady = reason.trim() !== '' && (!isOfferingTimes || alternatives.length > 0)
 
+  // Read once when the dialog opens, so the warning can't flip while the member is typing a reason.
+  const [isLate] = useState(() => isLateCancel(session.startsAt, Date.now()))
   const creditLine = swapType === 'two_way' || isTeaching
     ? null
     : `Your 1 credit is refunded, and ${firstName}'s time opens up for others.`
+  // Past the cutoff the outcome changes, so it's said before the member confirms. A late cancel counts as an absence.
+  const lateLine = swapType === 'two_way'
+    ? 'No credit moves, but it counts as a late cancel on your record.'
+    : isTeaching
+      ? `${firstName} gets the credit back, and it counts as a late cancel on your record.`
+      : `If you cancel now, your credit goes to ${firstName}, and it counts as a late cancel.`
 
   async function submit() {
     setIsSubmitting(true)
     try {
-      await cancelSession(session.id, reason.trim(), [...alternatives].sort())
+      await cancelSession(session.id, reason.trim(), alternatives.toSorted())
       onDone()
     } catch (cause) {
       if (cause instanceof SlotTakenError) {
@@ -84,14 +93,20 @@ export default function CancelSessionModal({ session, mode, canOfferTimes, onClo
           max={MAX_ALTERNATIVES}
         />
       )}
-      {!isOfferingTimes && creditLine && <p className="mt-3 text-sm text-muted">{creditLine}</p>}
+      {isLate && !isOfferingTimes ? (
+        <p role="note" className="mt-3 rounded-lg bg-coral-soft p-3 text-sm text-ink">
+          <span className="font-semibold">Less than {CANCEL_CUTOFF_HOURS} hours to go.</span> {lateLine}
+        </p>
+      ) : (
+        !isOfferingTimes && creditLine && <p className="mt-3 text-sm text-muted">{creditLine}</p>
+      )}
       {/* Only true when there's no chat yet; members who already talk keep their chat. */}
       {isOfferingTimes && !session.conversationExists && <p className="mt-3 text-sm text-muted">Chat stays locked until {firstName} accepts, unless you already have another session together.</p>}
 
       <div className="mt-5 flex justify-end gap-3">
-        <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Keep session</Button>
+        <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Keep the session</Button>
         <Button onClick={submit} disabled={!isReady} isLoading={isSubmitting}>
-          {mode === 'cancel' && !isOfferingTimes ? 'Cancel session' : 'Send new times'}
+          {mode === 'cancel' && !isOfferingTimes ? (isLate ? 'Cancel anyway' : 'Cancel session') : 'Send new times'}
         </Button>
       </div>
     </Modal>

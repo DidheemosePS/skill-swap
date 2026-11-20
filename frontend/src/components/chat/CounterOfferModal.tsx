@@ -29,7 +29,7 @@ export default function CounterOfferModal({ request, peerId, peerFirstName, onUp
   async function submit() {
     setIsSubmitting(true)
     try {
-      onUpdated(await counterSwapRequest(request.id, [...proposal.allTimes].sort(), note.trim() || null))
+      onUpdated(await counterSwapRequest(request.id, proposal.allTimes.toSorted(), note.trim() || null))
       onClose()
     } catch (cause) {
       if (cause instanceof SlotTakenError) {

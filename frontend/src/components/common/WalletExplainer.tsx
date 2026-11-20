@@ -19,9 +19,8 @@ interface WalletExplainerProps {
 const HELD_UNTIL: Partial<Record<SessionStatus, string>> = {
   pending: 'until they accept a time',
   confirmed: "until it's taught",
-  awaiting_settlement: "until the outcome's marked",
-  pending_learner_review: 'waiting for your confirmation',
-  disputed: 'while it is reviewed',
+  awaiting_settlement: 'until it settles, 24 hours after the end',
+  disputed: 'while an admin reviews a concern',
 }
 
 // Fetched only when opened, so the navbar on every page doesn't load the ledger.
@@ -30,23 +29,25 @@ export default function WalletExplainer({ id, credits, heldCredits, hasFailed, o
   const held = (ledger.data ?? []).filter((entry): entry is LedgerEntry & { session: NonNullable<LedgerEntry['session']> } => entry.status === 'in_escrow' && entry.session !== null)
 
   return (
-    <section id={id} aria-label="Credits" className="fixed inset-x-4 top-[4.25rem] z-30 md:absolute md:inset-x-auto md:top-auto md:right-0 md:mt-2 md:w-96 rounded-xl border border-line bg-surface p-4 text-sm shadow-[0_8px_24px_rgb(29_26_34/0.14)]">
+    // Sets its own ink: it opens inside the ultramarine bar, and data-popover keeps the bar's white focus rings out.
+    <section id={id} data-popover aria-label="Credits" className="fixed inset-x-4 top-[4.25rem] z-30 rounded-2xl border border-line bg-surface p-5 text-sm text-ink shadow-[0_12px_28px_-8px_rgb(27_29_34/0.28)] md:absolute md:inset-x-auto md:top-auto md:right-0 md:mt-2 md:w-96">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-base font-medium">Credits</h2>
+        <h2 className="font-display text-lg font-semibold">Your credits</h2>
         {/* Phones have no Escape key, and the panel covers the page width, so it gets a visible close. */}
         <button type="button" onClick={onClose} className="-mt-2 -mr-2 inline-flex min-h-11 items-center rounded px-2 text-sm font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent md:hidden">Close</button>
       </div>
       <p className="text-muted">Teach an hour, earn 1.</p>
       {hasFailed && <p className="mt-2 text-danger">Your balance couldn't load. <button type="button" onClick={onRetry} className="font-semibold underline">Try again</button></p>}
-      <dl className="mt-3 divide-y divide-line/60">
-        <div className="flex items-baseline justify-between gap-4 py-2">
-          <dt><b className="figures font-semibold">{credits ?? '–'}</b> to spend</dt>
-          <dd className="text-right">
-            <Link to="/explore" onClick={onClose} className="inline-flex min-h-11 items-center rounded font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">Find someone</Link>
+      <dl className="mt-3 divide-y divide-line">
+        {/* Stamped like the dashboard's hours card: the spendable balance as one line in the display face. */}
+        <div className="flex items-center justify-between gap-4 pb-3">
+          <dt className="font-display text-2xl leading-tight font-bold text-accent"><span className="figures">{credits ?? '–'}</span> to spend</dt>
+          <dd className="shrink-0 text-right">
+            <Link to="/explore" onClick={onClose} className="-mr-2 inline-flex min-h-11 items-center rounded px-2 font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">Find someone</Link>
           </dd>
         </div>
         {/* Held reasons stack under the figure: each is a short sentence, too long for a side column. */}
-        <div className="py-2">
+        <div className="py-3">
           <dt className="font-semibold text-held"><b className="figures font-semibold">{heldCredits ?? 0}</b> held</dt>
           <dd className="mt-0.5 text-muted">Set aside for bookings; returned if a session doesn't happen.</dd>
           <dd className="mt-1.5 text-muted">
@@ -67,8 +68,8 @@ export default function WalletExplainer({ id, credits, heldCredits, hasFailed, o
           </dd>
         </div>
       </dl>
-      <div className="mt-1 flex justify-end border-t border-line/60 pt-2">
-        <Link to="/wallet" onClick={onClose} className="inline-flex min-h-11 items-center rounded font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
+      <div className="flex justify-end border-t border-line pt-1">
+        <Link to="/wallet" onClick={onClose} className="-mr-2 inline-flex min-h-11 items-center rounded px-2 font-medium text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
           Open wallet
         </Link>
       </div>

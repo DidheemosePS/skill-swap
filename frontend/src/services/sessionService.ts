@@ -41,7 +41,7 @@ export function fetchRequestedSessions(): Promise<RequestedSession[]> {
     const partner = mockUsers.find((user) => user.id === (isTeaching ? request.learnerId : request.teacherId))
     const skillName = getSkillName(request.skillId)
     if (!partner || !skillName) return []
-    const proposedSlots = [...request.proposedSlots].sort()
+    const proposedSlots = request.proposedSlots.toSorted()
     return [{ requestId: request.id, partner, skillName, returnSkillName: getSkillName(request.returnSkillId) ?? null, swapType: request.swapType, isTeaching, proposedSlots, expiresAt: request.expiresAt, awaitingMe: request.lastProposedBy !== CURRENT_USER_ID }]
   })
   return mockRequest('requested-sessions', requested, [])
@@ -72,7 +72,7 @@ export function getNextSession(peerId: string): Session | null {
 // Its start time alone, used to tell members they're already booked.
 export const getNextSessionAt = (peerId: string): string | null => getNextSession(peerId)?.startsAt ?? null
 
-const LIVE_OR_COMPLETED: SessionStatus[] = ['confirmed', 'awaiting_settlement', 'pending_learner_review', 'disputed', 'completed']
+const LIVE_OR_COMPLETED: SessionStatus[] = ['confirmed', 'awaiting_settlement', 'disputed', 'completed']
 
 // Keeps chat open: a cancelled session doesn't lock members who have another session or a finished one.
 export const hasSessionHistoryWith = (peerId: string) =>
@@ -80,15 +80,3 @@ export const hasSessionHistoryWith = (peerId: string) =>
     (session) =>
       LIVE_OR_COMPLETED.includes(session.status) && [session.teacherId, session.learnerId].includes(peerId),
   )
-
-export async function logAttendance(sessionId: string): Promise<{ joinedAt: string }> {
-  const joinedAt = new Date().toISOString()
-  await mockRequest('attendance', null)
-  const session = mockSessions.find((item) => item.id === sessionId)
-  // Only the first join counts: no-show checks need the earliest time, not the latest rejoin.
-  const existing = session?.attendance.find((record) => record.userId === CURRENT_USER_ID)
-  if (existing) return { joinedAt: existing.joinedAt }
-  // Leaving is reported by the meeting provider, so the record stays open until then.
-  session?.attendance.push({ userId: CURRENT_USER_ID, joinedAt, leftAt: null, durationMinutes: 0 })
-  return { joinedAt }
-}

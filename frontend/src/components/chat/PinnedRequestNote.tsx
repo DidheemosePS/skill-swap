@@ -9,31 +9,32 @@ import { formatSlotDateTime, formatSlotTime, getSlotEnd } from '../../utils/time
 import { getButtonClasses } from '../common/buttonStyles'
 import JoinMeetingButton from '../schedule/JoinMeetingButton'
 import { describeDeal } from './describeDeal'
-import OwedSessionNote from './OwedSessionNote'
 import PlumNote from './PlumNote'
+import SettlingNote from './SettlingNote'
+import type { SettleStep } from '../schedule/SettlingDrawer'
 import SwapPair from '../common/SwapPair'
 import SwapRequestActions from './SwapRequestActions'
 
 interface PinnedRequestNoteProps {
   request: SwapRequest | null
   sentAt: string | null
-  owedSession: ConversationSummary['owedSession']
+  settling: ConversationSummary['settling']
   peerName: string
   peerAvatarUrl: string | null
   skillNames: Map<string, string>
   onUpdated: (message: Message) => void
   onCounter: (request: SwapRequest) => void
-  // Opens the settle drawer for the owed session right here, as the dashboard does.
-  onSettle: () => void
+  // Opens the settle drawer for the settling session right here, as the dashboard does.
+  onSettle: (step: SettleStep) => void
   isOpeningSettle: boolean
 }
 
 const SOON_MS = 60 * 60_000
 
-// The live request, booked session or owed outcome with this person, pinned above the thread. Plum only when
-// it's the member's move (reply, join, mark the outcome); otherwise a one-row paper note that opens on demand,
+// The live request or booked session with this person, pinned above the thread, with any settling session as a
+// quiet row under it. Plum only when it's the member's move (reply, join); otherwise a one-row paper note that opens on demand,
 // so waiting threads keep the screen for the conversation.
-export default function PinnedRequestNote({ request, sentAt, owedSession, peerName, peerAvatarUrl, skillNames, onUpdated, onCounter, onSettle, isOpeningSettle }: PinnedRequestNoteProps) {
+export default function PinnedRequestNote({ request, sentAt, settling, peerName, peerAvatarUrl, skillNames, onUpdated, onCounter, onSettle, isOpeningSettle }: PinnedRequestNoteProps) {
   const me = useCurrentUser()
   const myId = me.id
   const now = useNow(30_000)
@@ -47,12 +48,8 @@ export default function PinnedRequestNote({ request, sentAt, owedSession, peerNa
   const isJoinable = session !== null && getJoinState(session, now) === 'open'
   const isSoon = msToStart > 0 && msToStart <= SOON_MS
   const isYourMove = isMyTurn || isJoinable || isSoon
-  const owedNote = (variant: 'plum' | 'row') =>
-    owedSession && <OwedSessionNote owed={owedSession} firstName={firstName} skillName={skillNames.get(owedSession.skillId) ?? 'a skill'} variant={variant} isOpening={isOpeningSettle} onSettle={onSettle} />
-  // An owed outcome leads unless this request needs the member right now; then it waits in a row underneath.
-  if (owedSession && !isYourMove) return owedNote('plum')
-
-  if (!request) return null
+  const settlingNote = settling && <SettlingNote settling={settling} firstName={firstName} skillName={skillNames.get(settling.skillId) ?? 'a skill'} isOpening={isOpeningSettle} onOpen={onSettle} />
+  if (!request) return settlingNote
   const deal = describeDeal(request, myId, firstName, skillNames)
   const label = isPending
     ? isMyTurn ? `${firstName}'s request · your turn to reply` : `Your request · ${firstName}'s turn to reply`
@@ -93,33 +90,36 @@ export default function PinnedRequestNote({ request, sentAt, owedSession, peerNa
         <PlumNote id={request.id} label={label} headline={deal.headline} sub={deal.creditLine} pair={<SwapPair me={me} partner={{ name: peerName, avatarUrl: peerAvatarUrl }} size="md" ringClass="ring-next" />}>
           {body}
         </PlumNote>
-        {owedNote('row')}
+        {settlingNote}
       </>
     )
   }
 
   // Nothing to do right now: one paper row with the essentials, the rest behind Details.
   return (
-    <section data-request-id={request.id} aria-label={`${label}: ${deal.headline}`} className="rounded-2xl bg-card px-4 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-x-4">
-        <p className="min-w-0 py-1 text-sm">
-          <span className="text-xs font-semibold text-muted">{label}</span>
-          <span className="mx-1.5 text-muted">·</span>
-          <span className="font-semibold">{deal.headline}</span>
-          {session && <span className="figures text-muted"> · {formatSlotDateTime(session.startsAt)}</span>}
-          {/* The one rule a booked member needs before the day, visible without opening Details. */}
-          {session && <span className="text-muted"> · Join opens 10 min before</span>}
-        </p>
-        <button type="button" aria-expanded={isOpen} onClick={() => setIsOpen(!isOpen)} className="inline-flex min-h-11 items-center rounded px-1 text-sm font-semibold text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
-          {isOpen ? 'Hide details' : 'Details'}
-        </button>
-      </div>
-      {isOpen && (
-        <div className="mt-1 mb-2 border-t border-line pt-3 text-sm">
-          <p className="mb-3 text-muted">{deal.creditLine}</p>
-          {body}
+    <>
+      <section data-request-id={request.id} aria-label={`${label}: ${deal.headline}`} className="rounded-2xl border border-line bg-card px-4 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4">
+          <p className="min-w-0 py-1 text-sm">
+            <span className="text-xs font-semibold text-muted">{label}</span>
+            <span className="mx-1.5 text-muted">·</span>
+            <span className="font-semibold">{deal.headline}</span>
+            {session && <span className="figures text-muted"> · {formatSlotDateTime(session.startsAt)}</span>}
+            {/* The one rule a booked member needs before the day, visible without opening Details. */}
+            {session && <span className="text-muted"> · Join opens 10 min before</span>}
+          </p>
+          <button type="button" aria-expanded={isOpen} onClick={() => setIsOpen(!isOpen)} className="inline-flex min-h-11 items-center rounded px-1 text-sm font-semibold text-accent-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
+            {isOpen ? 'Hide details' : 'Details'}
+          </button>
         </div>
-      )}
-    </section>
+        {isOpen && (
+          <div className="mt-1 mb-2 border-t border-line pt-3 text-sm">
+            <p className="mb-3 text-muted">{deal.creditLine}</p>
+            {body}
+          </div>
+        )}
+      </section>
+      {settlingNote}
+    </>
   )
 }
